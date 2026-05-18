@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>USX 単体運転記録表</title>
+<style>
+:root {
+  --blue: #1a56db;
+  --blue-light: #e8f0fe;
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-900: #0f172a;
+  --red: #dc2626;
+  --green: #16a34a;
+  --orange: #ea580c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, 'Hiragino Kaku Gothic ProN', sans-serif; background: var(--gray-50); color: var(--gray-900); font-size: 14px; }
+
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--blue);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.title { color: #fff; font-size: 15px; font-weight: 700; }
+.subtitle { color: rgba(255,255,255,0.75); font-size: 11px; margin-top: 2px; }
+.header-btn {
+  background: rgba(255,255,255,0.2); color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.5);
+  border-radius: 8px; padding: 8px 12px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+
+/* タブバー */
+.tab-bar {
+  display: flex; overflow-x: auto; background: #fff;
+  border-bottom: 2px solid var(--gray-200);
+  position: sticky; top: 53px; z-index: 90;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0; padding: 12px 14px;
+  border: none; border-bottom: 3px solid transparent;
+  background: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--gray-600);
+  white-space: nowrap; -webkit-appearance: none;
+}
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* ページ */
+.page { display: none; padding: 14px; max-width: 820px; margin: 0 auto; }
+
+.card {
+  background: #fff; border: 1px solid var(--gray-200);
+  border-radius: 12px; margin-bottom: 14px; overflow: hidden;
+}
+.card-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px; background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 13px; font-weight: 700; color: var(--gray-700);
+}
+.card-body { padding: 14px; }
+
+/* フォーム */
+.fg { display: grid; gap: 12px; }
+.fg-2 { grid-template-columns: 1fr 1fr; }
+.fg-3 { grid-template-columns: 1fr 1fr 1fr; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--gray-600); letter-spacing: 0.03em; }
+
+input[type=text], input[type=number], select, textarea {
+  width: 100%; padding: 10px 11px;
+  border: 1.5px solid var(--gray-200); border-radius: 9px;
+  font-size: 15px; color: var(--gray-900); background: #fff;
+  font-family: inherit;
+  -webkit-appearance: none; appearance: none;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 28px;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(26,86,219,0.12);
+}
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* ラジオ・チェック */
+.pill-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.pill {
+  padding: 9px 15px; border-radius: 22px;
+  border: 1.5px solid var(--gray-200); background: #fff;
+  font-size: 13px; font-weight: 600; color: var(--gray-600);
+  cursor: pointer; user-select: none;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.pill.selected { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+.pill.selected-red { background: #fee2e2; border-color: var(--red); color: var(--red); }
+
+/* ユニットタブ */
+.unit-tabs { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
+.unit-tab {
+  padding: 7px 16px; border-radius: 22px;
+  border: 1.5px solid var(--gray-200); background: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.unit-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.unit-panel { display: none; }
+.unit-panel.active { display: block; }
+
+/* 計測テーブル */
+.mt-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mt { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 480px; }
+.mt th {
+  background: var(--gray-100); font-size: 11px; font-weight: 700; color: var(--gray-600);
+  padding: 7px 5px; border: 1px solid var(--gray-200); text-align: center; white-space: nowrap;
+}
+.mt td { border: 1px solid var(--gray-200); padding: 2px; vertical-align: middle; }
+.mt .rl { background: var(--gray-50); font-size: 12px; font-weight: 600; color: var(--gray-700); padding: 5px 8px; white-space: nowrap; }
+.mt .rc { background: #fffbeb; font-size: 11px; color: var(--orange); text-align: center; padding: 4px 5px; white-space: nowrap; }
+.mt .uc { background: var(--gray-50); font-size: 11px; color: var(--gray-600); text-align: center; padding: 4px 4px; white-space: nowrap; }
+.mt .grp td { background: #e0e7ff; font-size: 11px; font-weight: 700; color: #3730a3; padding: 4px 8px; }
+.mt .com { background: #f8fafc; text-align: center; font-size: 11px; color: #ccc; }
+.mt input[type=number] {
+  width: 100%; min-width: 56px; padding: 6px 4px;
+  border: none; border-radius: 4px; font-size: 13px; text-align: right;
+  background: transparent; -webkit-appearance: none;
+}
+.mt input[type=number]:focus { background: var(--blue-light); outline: none; }
+
+/* チェック */
+.ck-cat { margin-bottom: 14px; }
+.ck-cat-name { font-size: 12px; font-weight: 700; color: var(--gray-700); margin-bottom: 7px; }
+
+/* 事前点検 */
+.pc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.pc-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: 9px;
+}
+.pc-label { font-size: 12px; font-weight: 600; }
+.pc-btns { display: flex; gap: 6px; }
+.pc-btn {
+  padding: 5px 13px; border-radius: 7px; border: 1.5px solid var(--gray-200);
+  background: #fff; cursor: pointer; font-size: 12px; font-weight: 700;
+}
+.pc-btn.ok.sel { background: #dcfce7; border-color: var(--green); color: var(--green); }
+.pc-btn.ng.sel { background: #fee2e2; border-color: var(--red); color: var(--red); }
+
+/* ナビボタン */
+.nav-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
+.nav-btn {
+  padding: 12px 22px; border-radius: 10px; border: none;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.nav-next { background: var(--blue); color: #fff; }
+.nav-back { background: var(--gray-200); color: var(--gray-700); }
+
+/* 出力 */
+.export-box {
+  background: var(--blue-light); border: 1.5px solid #93c5fd;
+  border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 16px;
+}
+.export-box h3 { font-size: 15px; color: var(--blue); margin-bottom: 8px; }
+.export-box p { font-size: 13px; color: var(--gray-600); margin-bottom: 14px; }
+.export-cmd {
+  background: #1e293b; border-radius: 10px; padding: 14px;
+  text-align: left; margin-bottom: 14px;
+}
+.export-cmd code { color: #7dd3fc; font-size: 12px; font-family: monospace; word-break: break-all; }
+.btn-dl {
+  display: inline-block; padding: 11px 20px; border-radius: 9px; border: none;
+  font-size: 14px; font-weight: 700; cursor: pointer; margin: 4px;
+}
+.btn-dl.green { background: var(--green); color: #fff; }
+.btn-dl.gray { background: var(--gray-200); color: var(--gray-700); }
+
+.divider { height: 1px; background: var(--gray-200); margin: 12px 0; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #1e293b; color: #fff; padding: 12px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none;
+  transition: opacity 0.3s; z-index: 999; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+@media (max-width: 600px) {
+  .fg-3 { grid-template-columns: 1fr 1fr; }
+  .pc-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="title">📋 USX 運転記録表</div>
+    <div class="subtitle">ユニバーサルスマートX 単体点検入力</div>
+  </div>
+  <button class="header-btn" onclick="saveDraft()">💾 保存</button>
+</header>
+
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" id="tab-header"  onclick="showTab('header')">基本情報</button>
+  <button class="tab-btn"        id="tab-units"   onclick="showTab('units')">運転記録</button>
+  <button class="tab-btn"        id="tab-checks"  onclick="showTab('checks')">チェック</button>
+  <button class="tab-btn"        id="tab-precheck" onclick="showTab('precheck')">試運転点検</button>
+  <button class="tab-btn"        id="tab-export"  onclick="showTab('export')">Excel出力</button>
+</div>
+
+<!-- 基本情報 -->
+<div class="page" id="page-header">
+  <div class="card">
+    <div class="card-header">🏗️ 現場・作業情報</div>
+    <div class="card-body">
+      <div class="fg" style="margin-bottom:12px;">
+        <div class="field"><label>現場名</label><input type="text" id="現場名" placeholder="例: ○○小学校 空調工事"></div>
+        <div class="field"><label>住所</label><input type="text" id="住所" placeholder="例: 札幌市中央区北1条西2丁目"></div>
+      </div>
+      <div class="fg fg-3">
+        <div class="field"><label>作業日時</label><input type="text" id="作業日時" placeholder="例: 2025/06/01 09:00"></div>
+        <div class="field"><label>作業者</label><input type="text" id="作業者" placeholder="氏名"></div>
+        <div class="field"><label>作成者</label><input type="text" id="作成者" placeholder="氏名"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">⚙️ 作業区分</div>
+    <div class="card-body">
+      <div class="pill-group" id="pg-kubun">
+        <div class="pill" data-group="kubun" data-val="試運転">試運転</div>
+        <div class="pill" data-group="kubun" data-val="定期点検">定期点検</div>
+        <div class="pill" data-group="kubun" data-val="簡易点検">簡易点検</div>
+        <div class="pill" data-group="kubun" data-val="修理">修理</div>
+        <div class="pill" data-group="kubun" data-val="整備">整備</div>
+        <div class="pill" data-group="kubun" data-val="故障判定">故障判定</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">🌡️ 系統・機種情報</div>
+    <div class="card-body">
+      <div class="fg fg-2" style="margin-bottom:12px;">
+        <div class="field"><label>系統名</label><input type="text" id="系統名" placeholder="例: R-1 OHU系統"></div>
+        <div class="field"><label>連結台数</label><input type="number" id="連結台数" placeholder="台数" min="1" max="4"></div>
+        <div class="field"><label>運転状態</label>
+          <select id="運転状態"><option value="">選択</option><option>冷却</option><option>加熱</option></select>
+        </div>
+        <div class="field"><label>設定温度 (℃)</label><input type="number" id="設定温度" placeholder="45.0" step="0.1"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="fg fg-3" style="margin-bottom:12px;">
+        <div class="field"><label>型式 RUA-</label><input type="text" id="型式_RUA"></div>
+        <div class="field"><label>型式 UP</label><input type="text" id="型式_UP"></div>
+        <div class="field"><label>型式 HKZGM</label><input type="text" id="型式_HKZGM"></div>
+        <div class="field"><label>設置年月日</label><input type="text" id="設置年月日" placeholder="2023/04/01"></div>
+        <div class="field"><label>冷媒種類</label>
+          <select id="冷媒種類"><option value="">選択</option><option>R-410A</option><option>R-134a</option><option>R-32</option><option>R-404A</option><option>R-407C</option></select>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="field"><label>フロン排出抑制法区分</label>
+        <div class="pill-group" style="margin-top:6px;" id="pg-fron">
+          <div class="pill" data-group="fron" data-val="定期点検">定期点検</div>
+          <div class="pill" data-group="fron" data-val="簡易点検">簡易点検</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="nav-btn nav-next" onclick="showTab('units')">次へ: 運転記録 →</button>
+  </div>
+</div>
+
+<!-- 運転記録 -->
+<div class="page" id="page-units">
+  <div class="card">
+    <div class="card-header">🔧 熱源機 運転データ</div>
+    <div class="card-body">
+      <div class="unit-tabs">
+        <button class="unit-tab active" onclick="showUnit(1)">No.1</button>
+        <button class="unit-tab" onclick="showUnit(2)">No.2</button>
+        <button class="unit-tab" onclick="showUnit(3)">No.3</button>
+        <button class="unit-tab" onclick="showUnit(4)">No.4</button>
+      </div>
+      <div id="unit-panels"></div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="nav-btn nav-back" onclick="showTab('header')">← 戻る</button>
+    <button class="nav-btn nav-next" onclick="showTab('checks')">次へ: チェック →</button>
+  </div>
+</div>
+
+<!-- チェック結果 -->
+<div class="page" id="page-checks">
+  <div class="card">
+    <div class="card-header">✅ チェック結果（異常箇所にチェック）</div>
+    <div class="card-body" id="checks-body"></div>
+  </div>
+  <div class="nav-row">
+    <button class="nav-btn nav-back" onclick="showTab('units')">← 戻る</button>
+    <button class="nav-btn nav-next" onclick="showTab('precheck')">次へ: 試運転点検 →</button>
+  </div>
+</div>
+
+<!-- 試運転事前点検 -->
+<div class="page" id="page-precheck">
+  <div class="card">
+    <div class="card-header">🔍 試運転事前点検</div>
+    <div class="card-body"><div class="pc-grid" id="precheck-body"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">📝 備考</div>
+    <div class="card-body"><textarea id="備考" rows="3" placeholder="備考・特記事項"></textarea></div>
+  </div>
+  <div class="nav-row">
+    <button class="nav-btn nav-back" onclick="showTab('checks')">← 戻る</button>
+    <button class="nav-btn nav-next" onclick="showTab('export')">Excel出力へ →</button>
+  </div>
+</div>
+
+<!-- Excel出力 -->
+<div class="page" id="page-export">
+  <div class="card">
+    <div class="card-header">📊 Excel出力</div>
+    <div class="card-body">
+      <div class="export-box">
+        <h3>📥 運転記録表を Excel に出力</h3>
+        <p>ボタンを押すだけで書式付きExcelがダウンロードされます。</p>
+        <button class="btn-dl green" id="gen-btn" onclick="generateExcel()">📥 Excel出力</button>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:8px;">📄 入力データプレビュー</div>
+        <pre id="json-preview" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;font-size:11px;overflow:auto;max-height:360px;color:var(--gray-700);font-family:monospace;"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 計測項目定義 =====
+// circuit: true  → A/B/C/D 各回路で個別入力
+// circuit: false → 熱源機共通（A列のみ入力）
+var MEAS = [
+  {key:'運転時間',           label:'運転時間',          unit:'h',       ref:'',          circuit:true,  grp:'基本'},
+  {key:'運転回数',           label:'運転回数',          unit:'回',      ref:'',          circuit:true,  grp:'基本'},
+  {key:'冷温水入口圧力',     label:'冷(温)水入口圧力',  unit:'kPa',     ref:'－',        circuit:false, grp:'冷温水'},
+  {key:'冷温水出口圧力',     label:'冷(温)水出口圧力',  unit:'kPa',     ref:'－',        circuit:false, grp:'冷温水'},
+  {key:'換算流量',           label:'換算流量',          unit:'L/min',   ref:'(注2)',     circuit:false, grp:'冷温水'},
+  {key:'冷温水入口温度',     label:'冷(温)水入口温度',  unit:'℃',      ref:'－',        circuit:false, grp:'冷温水'},
+  {key:'冷温水中間温度',     label:'冷(温)水中間温度',  unit:'℃',      ref:'－',        circuit:false, grp:'冷温水'},
+  {key:'冷温水出口温度',     label:'冷(温)水出口温度',  unit:'℃',      ref:'(注5)',     circuit:false, grp:'冷温水'},
+  {key:'外気温度',           label:'外気温度',          unit:'℃',      ref:'(注6)',     circuit:false, grp:'冷温水'},
+  {key:'圧縮機電流_R',       label:'圧縮機電流 R相',    unit:'A',       ref:'(注3)',     circuit:true,  grp:'電気'},
+  {key:'圧縮機電流_S',       label:'圧縮機電流 S相',    unit:'A',       ref:'(注3)',     circuit:true,  grp:'電気'},
+  {key:'圧縮機電流_T',       label:'圧縮機電流 T相',    unit:'A',       ref:'(注3)',     circuit:true,  grp:'電気'},
+  {key:'圧縮機電圧_RS',      label:'圧縮機電圧 R-S相',  unit:'V',       ref:'(注4)',     circuit:false, grp:'電気'},
+  {key:'圧縮機電圧_ST',      label:'圧縮機電圧 S-T相',  unit:'V',       ref:'(注4)',     circuit:false, grp:'電気'},
+  {key:'圧縮機電圧_TR',      label:'圧縮機電圧 T-R相',  unit:'V',       ref:'(注4)',     circuit:false, grp:'電気'},
+  {key:'冷媒高圧圧力',       label:'冷媒高圧圧力',      unit:'MPa',     ref:'1.0〜3.7', circuit:true,  grp:'冷媒'},
+  {key:'冷媒低圧圧力',       label:'冷媒低圧圧力',      unit:'MPa',     ref:'0.5〜1.5', circuit:true,  grp:'冷媒'},
+  {key:'冷媒吐出ガス温度',   label:'冷媒吐出ガス温度',  unit:'℃',      ref:'120以下',  circuit:true,  grp:'冷媒'},
+  {key:'冷媒吸入ガス温度',   label:'冷媒吸入ガス温度',  unit:'℃',      ref:'－5以上',  circuit:true,  grp:'冷媒'},
+  {key:'冷媒コイルガス温度1',label:'冷媒コイルガス温度１',unit:'℃',    ref:'－15〜42', circuit:true,  grp:'冷媒'},
+  {key:'冷媒コイルガス温度2',label:'冷媒コイルガス温度２',unit:'℃',    ref:'－15〜42', circuit:true,  grp:'冷媒'},
+  {key:'ファン回転数',       label:'ファン回転数',      unit:'rpm',     ref:'100〜830', circuit:true,  grp:'冷媒'},
+  {key:'圧縮機運転周波数',   label:'圧縮機運転周波数',  unit:'Hz',      ref:'0〜83',    circuit:true,  grp:'冷媒'},
+  {key:'膨脹弁1開度',        label:'膨脹弁１開度',      unit:'パルス',  ref:'0〜480',   circuit:true,  grp:'冷媒'},
+  {key:'膨脹弁2開度',        label:'膨脹弁２開度',      unit:'パルス',  ref:'0〜480',   circuit:true,  grp:'冷媒'},
+  {key:'高圧圧力異常',       label:'高圧圧力異常',      unit:'MPa',     ref:'4.15以下', circuit:true,  grp:'安全'},
+  {key:'絶縁抵抗',           label:'主電動機絶縁抵抗',  unit:'MΩ',     ref:'10以上',   circuit:true,  grp:'安全'},
+  {key:'出荷時充填量',       label:'出荷時充填量',      unit:'kg',      ref:'－',        circuit:true,  grp:'充填'},
+  {key:'初期充填量',         label:'初期(追加)充填量',  unit:'kg',      ref:'－',        circuit:true,  grp:'充填'},
+  {key:'総充填量',           label:'総充填量',          unit:'kg',      ref:'－',        circuit:true,  grp:'充填'},
+];
+
+var GRP_LABEL = {基本:'基本運転データ', 冷温水:'冷(温)水系統', 電気:'電気系統', 冷媒:'冷媒系統', 安全:'安全装置・絶縁', 充填:'冷媒充填量'};
+var CIRCS = ['A','B','C','D'];
+
+var CHECK_GROUPS = {
+  '圧縮機関係':       ['異常音','異常振動','圧力不良','オイル量','異常過熱'],
+  '凝縮器関係':       ['汚れ','流量不足','Yスト詰り','風量不足'],
+  '蒸発器関係':       ['汚れ','流量不足','Yスト詰り','風量不足'],
+  '送風機関係':       ['異常音','異常振動','ショートサイクル'],
+  '冷媒配管系統部品関係': ['ストレーナ','四方弁','電磁弁','膨張弁'],
+  '電装品関係':       ['センサー','リレー','トランス','制御基板','通信不具合'],
+  '補機関係':         ['ポンプ','圧力計','アキュムレータ'],
+  'その他':           ['その他'],
+};
+
+var PRECHECK_ITEMS = [
+  '電装品結線状態確認','通信線アドレス設定','熱源機外観点検','内蔵ポンプ動作確認',
+  '水配管フラッシング','12時間前通電','冷媒漏洩点検','インターロック動作確認',
+];
+
+var pillState = {};   // group -> val
+var preCheckState = {};
+
+// ===== UI構築 =====
+function buildUnitPanels() {
+  var container = document.getElementById('unit-panels');
+  if (!container) return;
+  var html = '';
+  for (var u = 1; u <= 4; u++) {
+    html += '<div class="unit-panel' + (u===1?' active':'') + '" id="unit-panel-' + u + '">';
+    html += '<div class="fg fg-3" style="gap:10px;margin-bottom:14px;">';
+    html += '<div class="field"><label>No.</label><input type="text" id="u' + u + '_No" placeholder="1"></div>';
+    html += '<div class="field"><label>UC製造番号</label><input type="text" id="u' + u + '_UC製造番号"></div>';
+    html += '<div class="field"><label>冷却/加熱</label><select id="u' + u + '_冷却加熱"><option value="">選択</option><option>冷却</option><option>加熱</option></select></div>';
+    html += '<div class="field"><label>製造年</label><input type="text" id="u' + u + '_製造年" placeholder="例: 2020年"></div>';
+    html += '<div class="field"><label>記録時間</label><input type="text" id="u' + u + '_記録時間" placeholder="例: 10:30"></div>';
+    html += '</div>';
+
+    html += '<div class="mt-wrap"><table class="mt">';
+    html += '<thead><tr><th style="min-width:140px;text-align:left;">項目</th><th style="min-width:48px;">単位</th><th style="min-width:68px;">参考値</th><th style="min-width:60px;">回路A</th><th style="min-width:60px;">回路B</th><th style="min-width:60px;">回路C</th><th style="min-width:60px;">回路D</th></tr></thead>';
+    html += '<tbody>';
+
+    var curGrp = '';
+    for (var mi = 0; mi < MEAS.length; mi++) {
+      var m = MEAS[mi];
+      if (m.grp !== curGrp) {
+        curGrp = m.grp;
+        html += '<tr class="grp"><td colspan="7">' + GRP_LABEL[m.grp] + '</td></tr>';
+      }
+      html += '<tr><td class="rl">' + m.label + '</td><td class="uc">' + m.unit + '</td><td class="rc">' + m.ref + '</td>';
+      if (m.circuit) {
+        for (var ci = 0; ci < CIRCS.length; ci++) {
+          html += '<td><input type="number" step="any" id="u' + u + '_' + m.key + '_' + CIRCS[ci] + '" placeholder="—"></td>';
+        }
+      } else {
+        html += '<td><input type="number" step="any" id="u' + u + '_' + m.key + '_A" placeholder="—"></td>';
+        html += '<td class="com" colspan="3">共通</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table></div></div>';
+  }
+  container.innerHTML = html;
+}
+
+function buildChecks() {
+  var body = document.getElementById('checks-body');
+  if (!body) return;
+  var html = '';
+  var groups = Object.keys(CHECK_GROUPS);
+  for (var gi = 0; gi < groups.length; gi++) {
+    var group = groups[gi];
+    var items = CHECK_GROUPS[group];
+    html += '<div class="ck-cat"><div class="ck-cat-name">【 ' + group + ' 】</div><div class="pill-group">';
+    for (var ii = 0; ii < items.length; ii++) {
+      html += '<div class="pill" data-group="ck_' + group + '" data-val="' + items[ii] + '">' + items[ii] + '</div>';
+    }
+    html += '</div></div>';
+  }
+  body.innerHTML = html;
+}
+
+function buildPrechecks() {
+  var body = document.getElementById('precheck-body');
+  if (!body) return;
+  var html = '';
+  for (var i = 0; i < PRECHECK_ITEMS.length; i++) {
+    var item = PRECHECK_ITEMS[i];
+    html += '<div class="pc-item">';
+    html += '<div class="pc-label">' + item + '</div>';
+    html += '<div class="pc-btns">';
+    html += '<button class="pc-btn ok" data-item="' + item + '" data-val="OK">OK</button>';
+    html += '<button class="pc-btn ng" data-item="' + item + '" data-val="NG">NG</button>';
+    html += '</div></div>';
+  }
+  body.innerHTML = html;
+
+  // 事前点検ボタンのイベント
+  var btns = body.querySelectorAll('.pc-btn');
+  for (var j = 0; j < btns.length; j++) {
+    btns[j].addEventListener('click', function() {
+      var item = this.getAttribute('data-item');
+      var val  = this.getAttribute('data-val');
+      var parent = this.closest('.pc-item');
+      var allBtns = parent.querySelectorAll('.pc-btn');
+      for (var k = 0; k < allBtns.length; k++) allBtns[k].classList.remove('sel');
+      if (preCheckState[item] === val) {
+        delete preCheckState[item];
+      } else {
+        preCheckState[item] = val;
+        this.classList.add('sel');
+      }
+    });
+  }
+}
+
+// ===== ピル選択（作業区分・チェック結果など） =====
+document.addEventListener('click', function(e) {
+  var pill = e.target.closest('.pill');
+  if (!pill) return;
+  var group = pill.getAttribute('data-group');
+  var val   = pill.getAttribute('data-val');
+  if (!group || !val) return;
+
+  var isRadio = (group === 'kubun' || group === 'fron');
+
+  if (isRadio) {
+    // 同グループ内で1つだけ選択
+    var siblings = document.querySelectorAll('.pill[data-group="' + group + '"]');
+    for (var i = 0; i < siblings.length; i++) siblings[i].classList.remove('selected');
+    pill.classList.add('selected');
+    pillState[group] = val;
+  } else {
+    // チェック（複数選択可）
+    if (pill.classList.contains('selected-red')) {
+      pill.classList.remove('selected-red');
+    } else {
+      pill.classList.add('selected-red');
+    }
+  }
+});
+
+// ===== タブ切り替え =====
+var TABS = ['header','units','checks','precheck','export'];
+
+function showTab(name) {
+  for (var i = 0; i < TABS.length; i++) {
+    var t = TABS[i];
+    var pg = document.getElementById('page-' + t);
+    var tb = document.getElementById('tab-' + t);
+    if (pg) pg.style.display = (t === name) ? 'block' : 'none';
+    if (tb) {
+      if (t === name) tb.classList.add('active');
+      else tb.classList.remove('active');
+    }
+  }
+  if (name === 'export') updateExport();
+  window.scrollTo(0, 0);
+}
+
+function showUnit(n) {
+  var panels = document.querySelectorAll('.unit-panel');
+  var tabs   = document.querySelectorAll('.unit-tab');
+  for (var i = 0; i < panels.length; i++) panels[i].style.display = 'none';
+  for (var i = 0; i < tabs.length; i++)   tabs[i].classList.remove('active');
+  var p = document.getElementById('unit-panel-' + n);
+  if (p) p.style.display = 'block';
+  if (tabs[n-1]) tabs[n-1].classList.add('active');
+}
+
+// ===== データ収集 =====
+function getVal(id) {
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function collectData() {
+  var d = {};
+  var textFields = ['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考'];
+  for (var i = 0; i < textFields.length; i++) {
+    var v = getVal(textFields[i]);
+    if (v) d[textFields[i]] = v;
+  }
+  var selFields = ['運転状態','冷媒種類'];
+  for (var i = 0; i < selFields.length; i++) {
+    var v = getVal(selFields[i]);
+    if (v) d[selFields[i]] = v;
+  }
+  if (pillState['kubun']) d['作業区分'] = pillState['kubun'];
+  if (pillState['fron'])  d['フロン区分'] = pillState['fron'];
+
+  // 熱源機
+  d['熱源機'] = [];
+  for (var u = 1; u <= 4; u++) {
+    var unit = {};
+    var uFields = ['No','UC製造番号','冷却加熱','製造年','記録時間'];
+    for (var fi = 0; fi < uFields.length; fi++) {
+      var v = getVal('u' + u + '_' + uFields[fi]);
+      if (v) unit[uFields[fi]] = v;
+    }
+    for (var mi = 0; mi < MEAS.length; mi++) {
+      var m = MEAS[mi];
+      if (m.circuit) {
+        for (var ci = 0; ci < CIRCS.length; ci++) {
+          var v = getVal('u' + u + '_' + m.key + '_' + CIRCS[ci]);
+          if (v !== '') unit[m.key + '_' + CIRCS[ci]] = parseFloat(v);
+        }
+      } else {
+        var v = getVal('u' + u + '_' + m.key + '_A');
+        if (v !== '') unit[m.key + '_A'] = parseFloat(v);
+      }
+    }
+    if (Object.keys(unit).length > 0) d['熱源機'].push(unit);
+  }
+
+  // チェック結果
+  d['チェック結果'] = {};
+  var pills = document.querySelectorAll('.pill.selected-red[data-group]');
+  for (var i = 0; i < pills.length; i++) {
+    var pg = pills[i].getAttribute('data-group');
+    var pv = pills[i].getAttribute('data-val');
+    if (pg && pg.indexOf('ck_') === 0) {
+      var grpName = pg.slice(3);
+      if (!d['チェック結果'][grpName]) d['チェック結果'][grpName] = [];
+      d['チェック結果'][grpName].push(pv);
+    }
+  }
+
+  d['試運転事前点検'] = JSON.parse(JSON.stringify(preCheckState));
+  return d;
+}
+
+// ===== 出力 =====
+function updateExport() {
+  var data = collectData();
+  document.getElementById('json-preview').textContent = JSON.stringify(data, null, 2);
+}
+
+function generateExcel() {
+  var btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+  var data = collectData();
+  fetch('/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  })
+  .then(function(res) {
+    if (!res.ok) return res.json().then(function(e){ throw new Error(e.error); });
+    return res.blob();
+  })
+  .then(function(blob) {
+    var site = (data['現場名'] || '').slice(0,20).replace(/[\/\s]/g,'_');
+    var ts = new Date().toISOString().slice(0,10);
+    var fname = '運転記録表_' + site + '_' + ts + '.xlsx';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast('✅ Excelをダウンロードしました');
+  })
+  .catch(function(e) {
+    toast('❌ エラー: ' + e.message);
+  })
+  .finally(function() {
+    btn.disabled = false;
+    btn.textContent = '📥 Excel出力';
+  });
+}
+
+// ===== 下書き保存・復元 =====
+function saveDraft() {
+  try {
+    localStorage.setItem('usx_draft', JSON.stringify(collectData()));
+    toast('下書きを保存しました');
+  } catch(e) { toast('保存に失敗しました'); }
+}
+
+function loadDraft() {
+  var raw = '';
+  try { raw = localStorage.getItem('usx_draft'); } catch(e) { return; }
+  if (!raw) return;
+  try {
+    var data = JSON.parse(raw);
+    restoreData(data);
+    toast('下書きを復元しました');
+  } catch(e) {}
+}
+
+function restoreData(data) {
+  var textFields = ['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考'];
+  for (var i = 0; i < textFields.length; i++) {
+    if (data[textFields[i]] !== undefined) { var el = document.getElementById(textFields[i]); if (el) el.value = data[textFields[i]]; }
+  }
+  var selFields = ['運転状態','冷媒種類'];
+  for (var i = 0; i < selFields.length; i++) {
+    if (data[selFields[i]]) { var el = document.getElementById(selFields[i]); if (el) el.value = data[selFields[i]]; }
+  }
+  if (data['作業区分']) {
+    var p = document.querySelector('.pill[data-group="kubun"][data-val="' + data['作業区分'] + '"]');
+    if (p) { p.classList.add('selected'); pillState['kubun'] = data['作業区分']; }
+  }
+  if (data['フロン区分']) {
+    var p = document.querySelector('.pill[data-group="fron"][data-val="' + data['フロン区分'] + '"]');
+    if (p) { p.classList.add('selected'); pillState['fron'] = data['フロン区分']; }
+  }
+  if (data['熱源機']) {
+    for (var u = 0; u < data['熱源機'].length && u < 4; u++) {
+      var unit = data['熱源機'][u];
+      var uFields = ['No','UC製造番号','冷却加熱','製造年','記録時間'];
+      for (var fi = 0; fi < uFields.length; fi++) {
+        if (unit[uFields[fi]] !== undefined) { var el = document.getElementById('u' + (u+1) + '_' + uFields[fi]); if (el) el.value = unit[uFields[fi]]; }
+      }
+      for (var mi = 0; mi < MEAS.length; mi++) {
+        var m = MEAS[mi];
+        if (m.circuit) {
+          for (var ci = 0; ci < CIRCS.length; ci++) {
+            var k = m.key + '_' + CIRCS[ci];
+            if (unit[k] !== undefined) { var el = document.getElementById('u' + (u+1) + '_' + k); if (el) el.value = unit[k]; }
+          }
+        } else {
+          var k = m.key + '_A';
+          if (unit[k] !== undefined) { var el = document.getElementById('u' + (u+1) + '_' + k); if (el) el.value = unit[k]; }
+        }
+      }
+    }
+  }
+  if (data['チェック結果']) {
+    var groups = Object.keys(data['チェック結果']);
+    for (var gi = 0; gi < groups.length; gi++) {
+      var grp = groups[gi];
+      var items = data['チェック結果'][grp];
+      for (var ii = 0; ii < items.length; ii++) {
+        var p = document.querySelector('.pill[data-group="ck_' + grp + '"][data-val="' + items[ii] + '"]');
+        if (p) p.classList.add('selected-red');
+      }
+    }
+  }
+  if (data['試運転事前点検']) {
+    var keys = Object.keys(data['試運転事前点検']);
+    for (var i = 0; i < keys.length; i++) {
+      var item = keys[i], val = data['試運転事前点検'][item];
+      preCheckState[item] = val;
+      var btn = document.querySelector('.pc-btn[data-item="' + item + '"][data-val="' + val + '"]');
+      if (btn) btn.classList.add('sel');
+    }
+  }
+}
+
+// ===== トースト =====
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 2500);
+}
+
+// ===== 初期化 =====
+function init() {
+  // 全ページ非表示→最初のページのみ表示
+  for (var i = 0; i < TABS.length; i++) {
+    var pg = document.getElementById('page-' + TABS[i]);
+    if (pg) pg.style.display = (TABS[i] === 'header') ? 'block' : 'none';
+  }
+  buildUnitPanels();
+  // unit-panel 1のみ表示
+  for (var u = 1; u <= 4; u++) {
+    var p = document.getElementById('unit-panel-' + u);
+    if (p) p.style.display = (u === 1) ? 'block' : 'none';
+  }
+  buildChecks();
+  buildPrechecks();
+  loadDraft();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
