@@ -180,23 +180,26 @@ def generate():
 
 # ===== 起動 =====
 
-def open_browser():
+def open_browser(port):
     import time; time.sleep(1.2)
-    webbrowser.open('http://localhost:5199')
+    webbrowser.open(f'http://localhost:{port}')
 
 if __name__ == '__main__':
+    import socket, os
+    port = int(os.environ.get('PORT', 5199))
+    is_render = 'RENDER' in os.environ
+
     print('=' * 50)
     print(' USX 運転記録表サーバー 起動中...')
-    print(' ブラウザが自動で開きます')
-    print(' 終了するにはこのウィンドウを閉じてください')
     print('=' * 50)
-    import socket
-    try:
-        ip = socket.gethostbyname(socket.gethostname())
-    except:
-        ip = '127.0.0.1'
-    print(f'\n PC用URL:      http://localhost:5199')
-    print(f' スマホ用URL:  http://{ip}:5199  (同じWi-Fi内)')
-    print()
-    threading.Thread(target=open_browser, daemon=True).start()
-    app.run(host='0.0.0.0', port=5199, debug=False)
+
+    if not is_render:
+        try:
+            ip = socket.gethostbyname(socket.gethostname())
+        except:
+            ip = '127.0.0.1'
+        print(f' PC用URL:      http://localhost:{port}')
+        print(f' スマホ用URL:  http://{ip}:{port}  (同じWi-Fi内)')
+        threading.Thread(target=open_browser, args=(port,), daemon=True).start()
+
+    app.run(host='0.0.0.0', port=port, debug=False)
