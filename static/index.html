@@ -116,6 +116,12 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
   font-size: 13px; font-weight: 700; cursor: pointer;
 }
 .unit-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.unit-count-btn {
+  padding: 5px 10px; border-radius: 16px;
+  border: 1.5px solid var(--gray-200); background: #fff;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.unit-count-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 .unit-panel { display: none; }
 .unit-panel.active { display: block; }
 
@@ -209,7 +215,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     <div class="title">📋 USX 運転記録表</div>
     <div class="subtitle">ユニバーサルスマートX 単体点検入力</div>
   </div>
-  <button class="header-btn" onclick="saveDraft()">💾 保存</button>
+  <button class="header-btn" onclick="showSaveModal()">💾 保存</button>
 </header>
 
 <div class="tab-bar" id="tabBar">
@@ -218,6 +224,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
   <button class="tab-btn"        id="tab-checks"  onclick="showTab('checks')">チェック</button>
   <button class="tab-btn"        id="tab-precheck" onclick="showTab('precheck')">試運転点検</button>
   <button class="tab-btn"        id="tab-export"  onclick="showTab('export')">Excel出力</button>
+  <button class="tab-btn"        id="tab-list"    onclick="showTab('list')">📂 記録一覧</button>
 </div>
 
 <!-- 基本情報 -->
@@ -291,12 +298,24 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
   <div class="card">
     <div class="card-header">🔧 熱源機 運転データ</div>
     <div class="card-body">
-      <div class="unit-tabs">
-        <button class="unit-tab active" onclick="showUnit(1)">No.1</button>
-        <button class="unit-tab" onclick="showUnit(2)">No.2</button>
-        <button class="unit-tab" onclick="showUnit(3)">No.3</button>
-        <button class="unit-tab" onclick="showUnit(4)">No.4</button>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:6px;">表示台数</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="unit-count-sel">
+          <button class="unit-count-btn active" onclick="setUnitCount(1)">1台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(2)">2台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(3)">3台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(4)">4台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(5)">5台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(6)">6台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(7)">7台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(8)">8台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(9)">9台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(10)">10台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(11)">11台</button>
+          <button class="unit-count-btn" onclick="setUnitCount(12)">12台</button>
+        </div>
       </div>
+      <div class="unit-tabs" id="unit-tabs"></div>
       <div id="unit-panels"></div>
     </div>
   </div>
@@ -348,6 +367,31 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
         <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:8px;">📄 入力データプレビュー</div>
         <pre id="json-preview" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;font-size:11px;overflow:auto;max-height:360px;color:var(--gray-700);font-family:monospace;"></pre>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 記録一覧 -->
+<div class="page" id="page-list">
+  <div class="card">
+    <div class="card-header">📂 保存済み記録一覧</div>
+    <div class="card-body">
+      <div id="record-list-body">
+        <p style="color:var(--gray-600);font-size:13px;">保存された記録はありません</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 保存モーダル -->
+<div id="save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:24px;margin:20px;max-width:380px;width:100%;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">💾 記録を保存</div>
+    <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:6px;">保存名（現場名など）</div>
+    <input type="text" id="save-name-input" placeholder="例: ○○小学校 R-1系統" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:9px;font-size:15px;margin-bottom:16px;">
+    <div style="display:flex;gap:10px;">
+      <button onclick="hideSaveModal()" style="flex:1;padding:11px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:14px;font-weight:700;cursor:pointer;">キャンセル</button>
+      <button onclick="saveRecord()" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">保存</button>
     </div>
   </div>
 </div>
@@ -414,12 +458,41 @@ var pillState = {};   // group -> val
 var preCheckState = {};
 
 // ===== UI構築 =====
+var currentUnitCount = 1; // 現在表示中の台数
+
+function setUnitCount(n) {
+  currentUnitCount = n;
+  // カウントボタンのactive更新
+  var btns = document.querySelectorAll('.unit-count-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('active', i + 1 === n);
+  }
+  // タブ再描画
+  renderUnitTabs(n);
+  showUnit(1);
+}
+
+function renderUnitTabs(n) {
+  var container = document.getElementById('unit-tabs');
+  if (!container) return;
+  var html = '';
+  for (var u = 1; u <= n; u++) {
+    html += '<button class="unit-tab' + (u===1?' active':'') + '" onclick="showUnit(' + u + ')">No.' + u + '</button>';
+  }
+  container.innerHTML = html;
+  // n台より多い分のパネルを非表示
+  for (var u = 1; u <= 12; u++) {
+    var p = document.getElementById('unit-panel-' + u);
+    if (p) p.style.display = (u === 1 && u <= n) ? 'block' : 'none';
+  }
+}
+
 function buildUnitPanels() {
   var container = document.getElementById('unit-panels');
   if (!container) return;
   var html = '';
-  for (var u = 1; u <= 4; u++) {
-    html += '<div class="unit-panel' + (u===1?' active':'') + '" id="unit-panel-' + u + '">';
+  for (var u = 1; u <= 12; u++) {
+    html += '<div class="unit-panel" id="unit-panel-' + u + '" style="display:none;">';
     html += '<div class="fg fg-3" style="gap:10px;margin-bottom:14px;">';
     html += '<div class="field"><label>No.</label><input type="text" id="u' + u + '_No" placeholder="1"></div>';
     html += '<div class="field"><label>UC製造番号</label><input type="text" id="u' + u + '_UC製造番号"></div>';
@@ -533,7 +606,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ===== タブ切り替え =====
-var TABS = ['header','units','checks','precheck','export'];
+var TABS = ['header','units','checks','precheck','export','list'];
 
 function showTab(name) {
   for (var i = 0; i < TABS.length; i++) {
@@ -547,17 +620,24 @@ function showTab(name) {
     }
   }
   if (name === 'export') updateExport();
+  if (name === 'list') renderRecordList();
   window.scrollTo(0, 0);
 }
 
 function showUnit(n) {
-  var panels = document.querySelectorAll('.unit-panel');
-  var tabs   = document.querySelectorAll('.unit-tab');
-  for (var i = 0; i < panels.length; i++) panels[i].style.display = 'none';
-  for (var i = 0; i < tabs.length; i++)   tabs[i].classList.remove('active');
+  // 全パネル非表示
+  for (var u = 1; u <= 12; u++) {
+    var p = document.getElementById('unit-panel-' + u);
+    if (p) p.style.display = 'none';
+  }
+  // 選択パネルのみ表示
   var p = document.getElementById('unit-panel-' + n);
   if (p) p.style.display = 'block';
-  if (tabs[n-1]) tabs[n-1].classList.add('active');
+  // タブのactive更新
+  var tabs = document.querySelectorAll('.unit-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', i + 1 === n);
+  }
 }
 
 // ===== データ収集 =====
@@ -583,7 +663,7 @@ function collectData() {
 
   // 熱源機
   d['熱源機'] = [];
-  for (var u = 1; u <= 4; u++) {
+  for (var u = 1; u <= 12; u++) {
     var unit = {};
     var uFields = ['No','UC製造番号','冷却加熱','製造年','記録時間'];
     for (var fi = 0; fi < uFields.length; fi++) {
@@ -661,23 +741,122 @@ function generateExcel() {
   });
 }
 
-// ===== 下書き保存・復元 =====
-function saveDraft() {
-  try {
-    localStorage.setItem('usx_draft', JSON.stringify(collectData()));
-    toast('下書きを保存しました');
-  } catch(e) { toast('保存に失敗しました'); }
+// ===== 現場記録 保存・一覧・呼び出し =====
+var RECORDS_KEY = 'usx_records';
+
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]'); } catch(e) { return []; }
 }
 
+function saveRecords(records) {
+  try { localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch(e) {}
+}
+
+function showSaveModal() {
+  var data = collectData();
+  var name = data['現場名'] || '';
+  document.getElementById('save-name-input').value = name;
+  var modal = document.getElementById('save-modal');
+  modal.style.display = 'flex';
+  setTimeout(function(){ document.getElementById('save-name-input').focus(); }, 100);
+}
+
+function hideSaveModal() {
+  document.getElementById('save-modal').style.display = 'none';
+}
+
+function saveRecord() {
+  var name = document.getElementById('save-name-input').value.trim();
+  if (!name) { toast('保存名を入力してください'); return; }
+  var data = collectData();
+  var records = getRecords();
+  var now = new Date();
+  var ts = now.getFullYear() + '/' + ('0'+(now.getMonth()+1)).slice(-2) + '/' + ('0'+now.getDate()).slice(-2) + ' ' + ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2);
+  var id = Date.now().toString();
+  records.unshift({ id: id, name: name, ts: ts, data: data });
+  saveRecords(records);
+  hideSaveModal();
+  toast('「' + name + '」を保存しました');
+  renderRecordList();
+}
+
+function deleteRecord(id) {
+  var records = getRecords().filter(function(r){ return r.id !== id; });
+  saveRecords(records);
+  renderRecordList();
+  toast('削除しました');
+}
+
+function loadRecord(id) {
+  var records = getRecords();
+  var rec = null;
+  for (var i = 0; i < records.length; i++) { if (records[i].id === id) { rec = records[i]; break; } }
+  if (!rec) return;
+  clearForm();
+  restoreData(rec.data);
+  showTab('header');
+  toast('「' + rec.name + '」を読み込みました');
+}
+
+function clearForm() {
+  var textFields = ['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式_RUA','型式_UP','型式_HKZGM'];
+  for (var i = 0; i < textFields.length; i++) {
+    var el = document.getElementById(textFields[i]); if (el) el.value = '';
+  }
+  pillState = {};
+  document.querySelectorAll('.pill.selected').forEach(function(p){ p.classList.remove('selected'); });
+  document.querySelectorAll('.pill.selected-red').forEach(function(p){ p.classList.remove('selected-red'); });
+  preCheckState = {};
+  document.querySelectorAll('.pc-btn.sel').forEach(function(b){ b.classList.remove('sel'); });
+  for (var u = 1; u <= 12; u++) {
+    var uFields = ['No','UC製造番号','製造年','記録時間'];
+    for (var fi = 0; fi < uFields.length; fi++) { var el = document.getElementById('u'+u+'_'+uFields[fi]); if(el) el.value=''; }
+    var sel = document.getElementById('u'+u+'_冷却加熱'); if(sel) sel.value='';
+    for (var mi = 0; mi < MEAS.length; mi++) {
+      var m = MEAS[mi];
+      if (m.circuit) {
+        for (var ci = 0; ci < CIRCS.length; ci++) { var el = document.getElementById('u'+u+'_'+m.key+'_'+CIRCS[ci]); if(el) el.value=''; }
+      } else { var el = document.getElementById('u'+u+'_'+m.key+'_A'); if(el) el.value=''; }
+    }
+  }
+}
+
+function renderRecordList() {
+  var body = document.getElementById('record-list-body');
+  if (!body) return;
+  var records = getRecords();
+  if (records.length === 0) {
+    body.innerHTML = '<p style="color:var(--gray-600);font-size:13px;text-align:center;padding:20px;">保存された記録はありません</p>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < records.length; i++) {
+    var r = records[i];
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:10px;">';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="font-size:14px;font-weight:700;color:var(--gray-900);margin-bottom:3px;">' + r.name + '</div>';
+    html += '<div style="font-size:11px;color:var(--gray-600);">保存日時: ' + r.ts + '</div>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px;margin-left:10px;flex-shrink:0;">';
+    html += '<button onclick="loadRecord('' + r.id + '')" style="padding:7px 14px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">読込</button>';
+    html += '<button onclick="deleteRecord('' + r.id + '')" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;">削除</button>';
+    html += '</div></div>';
+  }
+  // 新規ボタン
+  html += '<div style="text-align:center;margin-top:6px;"><button onclick="newRecord()" style="padding:10px 24px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:13px;font-weight:700;cursor:pointer;">＋ 新規入力</button></div>';
+  body.innerHTML = html;
+}
+
+function newRecord() {
+  clearForm();
+  showTab('header');
+  toast('新規入力を開始します');
+}
+
+// 旧互換
+function saveDraft() { showSaveModal(); }
 function loadDraft() {
-  var raw = '';
-  try { raw = localStorage.getItem('usx_draft'); } catch(e) { return; }
-  if (!raw) return;
-  try {
-    var data = JSON.parse(raw);
-    restoreData(data);
-    toast('下書きを復元しました');
-  } catch(e) {}
+  // 起動時に最新記録を自動復元しない（一覧から選ぶ方式に変更）
 }
 
 function restoreData(data) {
@@ -698,7 +877,7 @@ function restoreData(data) {
     if (p) { p.classList.add('selected'); pillState['fron'] = data['フロン区分']; }
   }
   if (data['熱源機']) {
-    for (var u = 0; u < data['熱源機'].length && u < 4; u++) {
+    for (var u = 0; u < data['熱源機'].length && u < 12; u++) {
       var unit = data['熱源機'][u];
       var uFields = ['No','UC製造番号','冷却加熱','製造年','記録時間'];
       for (var fi = 0; fi < uFields.length; fi++) {
@@ -755,11 +934,7 @@ function init() {
     if (pg) pg.style.display = (TABS[i] === 'header') ? 'block' : 'none';
   }
   buildUnitPanels();
-  // unit-panel 1のみ表示
-  for (var u = 1; u <= 4; u++) {
-    var p = document.getElementById('unit-panel-' + u);
-    if (p) p.style.display = (u === 1) ? 'block' : 'none';
-  }
+  setUnitCount(1); // デフォルト1台表示、タブも描画
   buildChecks();
   buildPrechecks();
   loadDraft();
