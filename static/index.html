@@ -215,16 +215,16 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     <div class="title">📋 USX 運転記録表</div>
     <div class="subtitle">ユニバーサルスマートX 単体点検入力</div>
   </div>
-  <button class="header-btn" onclick="showSaveModal()">💾 保存</button>
+  <button class="header-btn" data-action="saveModal">💾 保存</button>
 </header>
 
 <div class="tab-bar" id="tabBar">
-  <button class="tab-btn active" id="tab-header"  onclick="showTab('header')">基本情報</button>
-  <button class="tab-btn"        id="tab-units"   onclick="showTab('units')">運転記録</button>
-  <button class="tab-btn"        id="tab-checks"  onclick="showTab('checks')">チェック</button>
-  <button class="tab-btn"        id="tab-precheck" onclick="showTab('precheck')">試運転点検</button>
-  <button class="tab-btn"        id="tab-export"  onclick="showTab('export')">Excel出力</button>
-  <button class="tab-btn"        id="tab-list"    onclick="showTab('list')">📂 記録一覧</button>
+  <button class="tab-btn active" id="tab-header"  data-tab="header">基本情報</button>
+  <button class="tab-btn"        id="tab-units"   data-tab="units">運転記録</button>
+  <button class="tab-btn"        id="tab-checks"  data-tab="checks">チェック</button>
+  <button class="tab-btn"        id="tab-precheck" data-tab="precheck">試運転点検</button>
+  <button class="tab-btn"        id="tab-export"  data-tab="export">Excel出力</button>
+  <button class="tab-btn"        id="tab-list"    data-tab="list">📂 記録一覧</button>
 </div>
 
 <!-- 基本情報 -->
@@ -289,7 +289,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     </div>
   </div>
   <div class="nav-row">
-    <button class="nav-btn nav-next" onclick="showTab('units')">次へ: 運転記録 →</button>
+    <button class="nav-btn nav-next" data-tab="units">次へ: 運転記録 →</button>
   </div>
 </div>
 
@@ -301,18 +301,18 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       <div style="margin-bottom:10px;">
         <div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:6px;">表示台数</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;" id="unit-count-sel">
-          <button class="unit-count-btn active" onclick="setUnitCount(1)">1台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(2)">2台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(3)">3台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(4)">4台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(5)">5台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(6)">6台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(7)">7台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(8)">8台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(9)">9台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(10)">10台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(11)">11台</button>
-          <button class="unit-count-btn" onclick="setUnitCount(12)">12台</button>
+          <button class="unit-count-btn active" data-count="1">1台</button>
+          <button class="unit-count-btn" data-count="2">2台</button>
+          <button class="unit-count-btn" data-count="3">3台</button>
+          <button class="unit-count-btn" data-count="4">4台</button>
+          <button class="unit-count-btn" data-count="5">5台</button>
+          <button class="unit-count-btn" data-count="6">6台</button>
+          <button class="unit-count-btn" data-count="7">7台</button>
+          <button class="unit-count-btn" data-count="8">8台</button>
+          <button class="unit-count-btn" data-count="9">9台</button>
+          <button class="unit-count-btn" data-count="10">10台</button>
+          <button class="unit-count-btn" data-count="11">11台</button>
+          <button class="unit-count-btn" data-count="12">12台</button>
         </div>
       </div>
       <div class="unit-tabs" id="unit-tabs"></div>
@@ -320,8 +320,8 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     </div>
   </div>
   <div class="nav-row">
-    <button class="nav-btn nav-back" onclick="showTab('header')">← 戻る</button>
-    <button class="nav-btn nav-next" onclick="showTab('checks')">次へ: チェック →</button>
+    <button class="nav-btn nav-back" data-tab="header">← 戻る</button>
+    <button class="nav-btn nav-next" data-tab="checks">次へ: チェック →</button>
   </div>
 </div>
 
@@ -332,8 +332,8 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     <div class="card-body" id="checks-body"></div>
   </div>
   <div class="nav-row">
-    <button class="nav-btn nav-back" onclick="showTab('units')">← 戻る</button>
-    <button class="nav-btn nav-next" onclick="showTab('precheck')">次へ: 試運転点検 →</button>
+    <button class="nav-btn nav-back" data-tab="units">← 戻る</button>
+    <button class="nav-btn nav-next" data-tab="precheck">次へ: 試運転点検 →</button>
   </div>
 </div>
 
@@ -348,8 +348,8 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     <div class="card-body"><textarea id="備考" rows="3" placeholder="備考・特記事項"></textarea></div>
   </div>
   <div class="nav-row">
-    <button class="nav-btn nav-back" onclick="showTab('checks')">← 戻る</button>
-    <button class="nav-btn nav-next" onclick="showTab('export')">Excel出力へ →</button>
+    <button class="nav-btn nav-back" data-tab="checks">← 戻る</button>
+    <button class="nav-btn nav-next" data-tab="export">Excel出力へ →</button>
   </div>
 </div>
 
@@ -361,7 +361,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       <div class="export-box">
         <h3>📥 運転記録表を Excel に出力</h3>
         <p>ボタンを押すだけで書式付きExcelがダウンロードされます。</p>
-        <button class="btn-dl green" id="gen-btn" onclick="generateExcel()">📥 Excel出力</button>
+        <button class="btn-dl green" id="gen-btn" data-action="generateExcel">📥 Excel出力</button>
       </div>
       <div>
         <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:8px;">📄 入力データプレビュー</div>
@@ -390,8 +390,8 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:6px;">保存名（現場名など）</div>
     <input type="text" id="save-name-input" placeholder="例: ○○小学校 R-1系統" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:9px;font-size:15px;margin-bottom:16px;">
     <div style="display:flex;gap:10px;">
-      <button onclick="hideSaveModal()" style="flex:1;padding:11px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:14px;font-weight:700;cursor:pointer;">キャンセル</button>
-      <button onclick="saveRecord()" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">保存</button>
+      <button data-action="hideSaveModal" style="flex:1;padding:11px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:14px;font-weight:700;cursor:pointer;">キャンセル</button>
+      <button data-action="saveRecord" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">保存</button>
     </div>
   </div>
 </div>
@@ -477,7 +477,7 @@ function renderUnitTabs(n) {
   if (!container) return;
   var html = '';
   for (var u = 1; u <= n; u++) {
-    html += '<button class="unit-tab' + (u===1?' active':'') + '" onclick="showUnit(' + u + ')">No.' + u + '</button>';
+    html += '<button class="unit-tab' + (u===1?' active':'') + '" data-unit="' + u + '">No.' + u + '</button>';
   }
   container.innerHTML = html;
   // n台より多い分のパネルを非表示
@@ -581,26 +581,52 @@ function buildPrechecks() {
 
 // ===== ピル選択（作業区分・チェック結果など） =====
 document.addEventListener('click', function(e) {
-  var pill = e.target.closest('.pill');
-  if (!pill) return;
-  var group = pill.getAttribute('data-group');
-  var val   = pill.getAttribute('data-val');
-  if (!group || !val) return;
+  var el = e.target;
 
-  var isRadio = (group === 'kubun' || group === 'fron');
+  // タブ切り替え
+  var tabEl = el.closest ? el.closest('[data-tab]') : null;
+  if (tabEl) { showTab(tabEl.getAttribute('data-tab')); return; }
 
-  if (isRadio) {
-    // 同グループ内で1つだけ選択
-    var siblings = document.querySelectorAll('.pill[data-group="' + group + '"]');
-    for (var i = 0; i < siblings.length; i++) siblings[i].classList.remove('selected');
-    pill.classList.add('selected');
-    pillState[group] = val;
-  } else {
-    // チェック（複数選択可）
-    if (pill.classList.contains('selected-red')) {
-      pill.classList.remove('selected-red');
+  // ユニットタブ
+  var unitEl = el.closest ? el.closest('[data-unit]') : null;
+  if (unitEl) { showUnit(parseInt(unitEl.getAttribute('data-unit'), 10)); return; }
+
+  // 台数選択
+  var countEl = el.closest ? el.closest('[data-count]') : null;
+  if (countEl) { setUnitCount(parseInt(countEl.getAttribute('data-count'), 10)); return; }
+
+  // アクション
+  var actEl = el.closest ? el.closest('[data-action]') : null;
+  if (actEl) {
+    var act = actEl.getAttribute('data-action');
+    if (act === 'saveModal')     { showSaveModal(); return; }
+    if (act === 'generateExcel') { generateExcel(); return; }
+    if (act === 'newRecord')     { newRecord(); return; }
+    if (act === 'hideSaveModal') { hideSaveModal(); return; }
+    if (act === 'saveRecord')    { saveRecord(); return; }
+  }
+
+  // 記録の読込・削除
+  var loadEl = el.closest ? el.closest('[data-record-load]') : null;
+  if (loadEl) { loadRecord(loadEl.getAttribute('data-record-load')); return; }
+  var delEl = el.closest ? el.closest('[data-record-del]') : null;
+  if (delEl) { deleteRecord(delEl.getAttribute('data-record-del')); return; }
+
+  // ピル選択（作業区分・チェック結果）
+  var pill = el.closest ? el.closest('.pill') : null;
+  if (pill) {
+    var group = pill.getAttribute('data-group');
+    var val   = pill.getAttribute('data-val');
+    if (!group || !val) return;
+    var isRadio = (group === 'kubun' || group === 'fron');
+    if (isRadio) {
+      var siblings = document.querySelectorAll('.pill[data-group="' + group + '"]');
+      for (var i = 0; i < siblings.length; i++) siblings[i].classList.remove('selected');
+      pill.classList.add('selected');
+      pillState[group] = val;
     } else {
-      pill.classList.add('selected-red');
+      if (pill.classList.contains('selected-red')) pill.classList.remove('selected-red');
+      else pill.classList.add('selected-red');
     }
   }
 });
@@ -838,14 +864,14 @@ function renderRecordList() {
     html += '<div style="font-size:11px;color:var(--gray-600);">保存日時: ' + r.ts + '</div>';
     html += '</div>';
     html += '<div style="display:flex;gap:8px;margin-left:10px;flex-shrink:0;">';
-    html += '<button onclick="loadRecord('' + r.id + '')" style="padding:7px 14px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">読込</button>';
-    html += '<button onclick="deleteRecord('' + r.id + '')" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;">削除</button>';
+    html += '<button data-record-load="' + r.id + '" style="padding:7px 14px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">読込</button>';
+    html += '<button data-record-del="' + r.id + '" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;">削除</button>';
     html += '</div></div>';
   }
-  // 新規ボタン
-  html += '<div style="text-align:center;margin-top:6px;"><button onclick="newRecord()" style="padding:10px 24px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:13px;font-weight:700;cursor:pointer;">＋ 新規入力</button></div>';
+  html += '<div style="text-align:center;margin-top:6px;"><button data-action="newRecord" style="padding:10px 24px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:13px;font-weight:700;cursor:pointer;">＋ 新規入力</button></div>';
   body.innerHTML = html;
 }
+
 
 function newRecord() {
   clearForm();
