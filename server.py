@@ -2,7 +2,7 @@
 USX 単体運転記録表 ローカルサーバー
 ダブルクリックで起動 → ブラウザが自動で開く → ボタン1つでExcel出力
 """
-import sys, os, json, shutil, threading, webbrowser
+import sys, os, json, shutil, threading, webbrowser, sqlite3, uuid
 from datetime import datetime
 from flask import Flask, request, send_file, send_from_directory, jsonify
 from openpyxl import load_workbook
@@ -12,6 +12,34 @@ from openpyxl.cell.cell import MergedCell
 BASE = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
 
 app = Flask(__name__, static_folder=os.path.join(BASE, 'static'))
+
+# ===== データベース設定 =====
+
+DB_PATH = os.path.join(os.path.expanduser('~'), '.usx_app', 'records.db')
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+def init_db():
+    """データベース初期化"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS records (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            data TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def get_db():
+    """DB接続"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # ===== Excel生成 =====
 
@@ -171,6 +199,76 @@ def generate_excel(data: dict) -> str:
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/api/records', methods=['GET'])
+def get_records():
+    """保存済み記録一覧を取得"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT id, name, created_at FROM records ORDER BY created_at DESC')
+        records = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return jsonify(records)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/records/<record_id>', methods=['GET'])
+def get_record(record_id):
+    """特定の記録を取得"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT id, name, created_at, data FROM records WHERE id = ?', (record_id,))
+        row = c.fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Record not found'}), 404
+        record = dict(row)
+        record['data'] = json.loads(record['data'])
+        return jsonify(record)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/records', methods=['POST'])
+def save_record():
+    """新規記録を保存"""
+    try:
+        data = request.get_json(force=True)
+        name = data.get('name', '').strip()
+        record_data = data.get('data', {})
+        
+        if not name:
+            return jsonify({'error': 'Name is required'}), 400
+        
+        record_id = str(uuid.uuid4())
+        created_at = datetime.now().isoformat()
+        
+        conn = get_db()
+        c = conn.cursor()
+        c.execute(
+            'INSERT INTO records (id, name, created_at, data) VALUES (?, ?, ?, ?)',
+            (record_id, name, created_at, json.dumps(record_data))
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'id': record_id, 'name': name, 'created_at': created_at}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/records/<record_id>', methods=['DELETE'])
+def delete_record(record_id):
+    """記録を削除"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('DELETE FROM records WHERE id = ?', (record_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/generate', methods=['POST'])
 def generate():
