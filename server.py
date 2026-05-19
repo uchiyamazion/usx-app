@@ -111,51 +111,26 @@ def generate_excel(data: dict) -> str:
 
     shutil.copy2(template, out_path)
     wb = load_workbook(out_path)
-    ws = wb.active
-
-    # ヘッダー
-    if data.get('現場名'):     safe_set(ws, 'D2', data['現場名'])
-    if data.get('住所'):       safe_set(ws, 'D3', data['住所'])
-    if data.get('作業日時'):   safe_set(ws, 'T3', data['作業日時'])
-    if data.get('作業者'):     safe_set(ws, 'T4', data['作業者'])
-    if data.get('系統名'):     safe_set(ws, 'E5', data['系統名'])
-    if data.get('型式_RUA'):   safe_set(ws, 'E6', 'RUA-' + data['型式_RUA'])
-    if data.get('型式_UP'):    safe_set(ws, 'F6', data['型式_UP'])
-    if data.get('型式_HKZGM'): safe_set(ws, 'I6', data['型式_HKZGM'])
-    if data.get('運転状態'):   safe_set(ws, 'E7', data['運転状態'])
-    if data.get('設定温度'):   safe_set(ws, 'F7', str(data['設定温度']) + '℃')
-    if data.get('連結台数'):   safe_set(ws, 'T7', data['連結台数'])
-    if data.get('設置年月日'): safe_set(ws, 'E8', data['設置年月日'])
-    if data.get('冷媒種類'):   safe_set(ws, 'K8', data['冷媒種類'])
-    if data.get('作成者'):     safe_set(ws, 'T70', data['作成者'])
-
-    for k, cell in {'試運転':'D4','定期点検':'F4','簡易点検':'H4','修理':'J4','整備':'L4','故障判定':'N4'}.items():
-        safe_set(ws, cell, ('■' if data.get('作業区分') == k else '□') + k)
-    for k, cell in {'定期点検':'Q8','簡易点検':'T8'}.items():
-        safe_set(ws, cell, ('■' if data.get('フロン区分') == k else '□') + k)
-
-    # 熱源機
-    for i, cols in enumerate(UNIT_COLS):
-        units = data.get('熱源機', [])
-        if i >= len(units): break
-        u = units[i]
-        nc = cols['no']
-        if u.get('No'):         safe_set(ws, f'{nc}11', u['No'])
-        if u.get('UC製造番号'): safe_set(ws, f'{nc}12', u['UC製造番号'])
-        if u.get('冷却加熱'):   safe_set(ws, f'{nc}13', u['冷却加熱'])
-        if u.get('製造年'):     safe_set(ws, f'{nc}14', u['製造年'])
-        if u.get('記録時間'):   safe_set(ws, f'{nc}49', u['記録時間'])
-
-        for field, row, is_circuit in FIELD_ROWS:
-            if is_circuit:
-                for c in ['A','B','C','D']:
-                    val = u.get(f'{field}_{c}')
-                    if val is not None: safe_set(ws, f'{cols[c]}{row}', val)
-            else:
-                val = u.get(f'{field}_A') or u.get(field)
-                if val is not None: safe_set(ws, f'{cols["A"]}{row}', val)
-
-    # チェック結果
+    
+    # 基本情報（全シートで同じ）
+    basic_info = {
+        '現場名': 'D2',
+        '住所': 'D3',
+        '作業日時': 'T3',
+        '作業者': 'T4',
+        '系統名': 'E5',
+        '型式_RUA': 'E6',
+        '型式_UP': 'F6',
+        '型式_HKZGM': 'I6',
+        '運転状態': 'E7',
+        '設定温度': 'F7',
+        '連結台数': 'T7',
+        '設置年月日': 'E8',
+        '冷媒種類': 'K8',
+        '作成者': 'T70',
+    }
+    
+    # チェック結果セル
     check_cells = {
         '圧縮機関係':       {'異常音':'F50','異常振動':'H50','圧力不良':'K50','オイル量':'N50','異常過熱':'Q50'},
         '凝縮器関係':       {'汚れ':'F51','流量不足':'H51','Yスト詰り':'K51','風量不足':'N51'},
@@ -166,13 +141,8 @@ def generate_excel(data: dict) -> str:
         '補機関係':         {'ポンプ':'F56','圧力計':'H56','アキュムレータ':'K56'},
         'その他':           {'その他':'F57'},
     }
-    checks = data.get('チェック結果', {})
-    for group, items in check_cells.items():
-        selected = checks.get(group, [])
-        for item, cell in items.items():
-            safe_set(ws, cell, ('■' if item in selected else '□') + item)
-
-    # 事前点検
+    
+    # 事前点検セル
     precheck_map = {
         '電装品結線状態確認':    ('F59','H59'),
         '通信線アドレス設定':    ('F60','H60'),
@@ -183,13 +153,83 @@ def generate_excel(data: dict) -> str:
         '冷媒漏洩点検':          ('Q61','T61'),
         'インターロック動作確認':('Q62','T62'),
     }
-    prechecks = data.get('試運転事前点検', {})
-    for item, (ok_cell, ng_cell) in precheck_map.items():
-        result = prechecks.get(item, '')
-        safe_set(ws, ok_cell, '■ＯＫ' if result == 'OK' else '□ＯＫ')
-        safe_set(ws, ng_cell, '■NG'   if result == 'NG' else '□NG')
 
-    if data.get('備考'): safe_set(ws, 'A71', data['備考'])
+    units = data.get('熱源機', [])
+    
+    # 各シートに対応: 1-4号機, 5-8号機, 9-12号機
+    sheet_ranges = [
+        (0, 4),   # Sheet1: 0-3 (1-4号機)
+        (4, 8),   # Sheet2: 4-7 (5-8号機)
+        (8, 12),  # Sheet3: 8-11 (9-12号機)
+    ]
+
+    for sheet_idx, (start_unit, end_unit) in enumerate(sheet_ranges):
+        # シートが存在するかチェック
+        if sheet_idx >= len(wb.sheetnames):
+            break
+        
+        ws = wb.worksheets[sheet_idx]
+
+        # ===== 基本情報を書き込み =====
+        if data.get('現場名'):     safe_set(ws, 'D2', data['現場名'])
+        if data.get('住所'):       safe_set(ws, 'D3', data['住所'])
+        if data.get('作業日時'):   safe_set(ws, 'T3', data['作業日時'])
+        if data.get('作業者'):     safe_set(ws, 'T4', data['作業者'])
+        if data.get('系統名'):     safe_set(ws, 'E5', data['系統名'])
+        if data.get('型式_RUA'):   safe_set(ws, 'E6', 'RUA-' + data['型式_RUA'])
+        if data.get('型式_UP'):    safe_set(ws, 'F6', data['型式_UP'])
+        if data.get('型式_HKZGM'): safe_set(ws, 'I6', data['型式_HKZGM'])
+        if data.get('運転状態'):   safe_set(ws, 'E7', data['運転状態'])
+        if data.get('設定温度'):   safe_set(ws, 'F7', str(data['設定温度']) + '℃')
+        if data.get('連結台数'):   safe_set(ws, 'T7', data['連結台数'])
+        if data.get('設置年月日'): safe_set(ws, 'E8', data['設置年月日'])
+        if data.get('冷媒種類'):   safe_set(ws, 'K8', data['冷媒種類'])
+        if data.get('作成者'):     safe_set(ws, 'T70', data['作成者'])
+
+        for k, cell in {'試運転':'D4','定期点検':'F4','簡易点検':'H4','修理':'J4','整備':'L4','故障判定':'N4'}.items():
+            safe_set(ws, cell, ('■' if data.get('作業区分') == k else '□') + k)
+        for k, cell in {'定期点検':'Q8','簡易点検':'T8'}.items():
+            safe_set(ws, cell, ('■' if data.get('フロン区分') == k else '□') + k)
+
+        # ===== 熱源機データを書き込み =====
+        for local_idx, unit_idx in enumerate(range(start_unit, end_unit)):
+            if unit_idx >= len(units):
+                break
+            
+            u = units[unit_idx]
+            cols = UNIT_COLS[local_idx]
+            nc = cols['no']
+            
+            if u.get('No'):         safe_set(ws, f'{nc}11', u['No'])
+            if u.get('UC製造番号'): safe_set(ws, f'{nc}12', u['UC製造番号'])
+            if u.get('冷却加熱'):   safe_set(ws, f'{nc}13', u['冷却加熱'])
+            if u.get('製造年'):     safe_set(ws, f'{nc}14', u['製造年'])
+            if u.get('記録時間'):   safe_set(ws, f'{nc}49', u['記録時間'])
+
+            for field, row, is_circuit in FIELD_ROWS:
+                if is_circuit:
+                    for c in ['A','B','C','D']:
+                        val = u.get(f'{field}_{c}')
+                        if val is not None: safe_set(ws, f'{cols[c]}{row}', val)
+                else:
+                    val = u.get(f'{field}_A') or u.get(field)
+                    if val is not None: safe_set(ws, f'{cols["A"]}{row}', val)
+
+        # ===== チェック結果を書き込み =====
+        checks = data.get('チェック結果', {})
+        for group, items in check_cells.items():
+            selected = checks.get(group, [])
+            for item, cell in items.items():
+                safe_set(ws, cell, ('■' if item in selected else '□') + item)
+
+        # ===== 事前点検を書き込み =====
+        prechecks = data.get('試運転事前点検', {})
+        for item, (ok_cell, ng_cell) in precheck_map.items():
+            result = prechecks.get(item, '')
+            safe_set(ws, ok_cell, '■ＯＫ' if result == 'OK' else '□ＯＫ')
+            safe_set(ws, ng_cell, '■NG'   if result == 'NG' else '□NG')
+
+        if data.get('備考'): safe_set(ws, 'A71', data['備考'])
 
     wb.save(out_path)
     return out_path
