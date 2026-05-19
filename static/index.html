@@ -228,7 +228,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 </div>
 
 <!-- 基本情報 -->
-<div class="page" id="page-header">
+<div class="page" id="page-header" style="display:block;">
   <div class="card">
     <div class="card-header">🏗️ 現場・作業情報</div>
     <div class="card-body">
@@ -928,16 +928,23 @@ function toast(msg) {
 
 // ===== 初期化 =====
 function init() {
-  // 全ページ非表示→最初のページのみ表示
-  for (var i = 0; i < TABS.length; i++) {
-    var pg = document.getElementById('page-' + TABS[i]);
-    if (pg) pg.style.display = (TABS[i] === 'header') ? 'block' : 'none';
-  }
-  buildUnitPanels();
-  setUnitCount(1); // デフォルト1台表示、タブも描画
-  buildChecks();
-  buildPrechecks();
-  loadDraft();
+  try {
+    // 全ページ非表示→最初のページのみ表示
+    for (var i = 0; i < TABS.length; i++) {
+      var pg = document.getElementById('page-' + TABS[i]);
+      if (pg) pg.style.display = (TABS[i] === 'header') ? 'block' : 'none';
+    }
+  } catch(e) { console.error('page init:', e); }
+
+  try { buildUnitPanels(); } catch(e) { console.error('buildUnitPanels:', e); }
+  try { setUnitCount(1); } catch(e) { console.error('setUnitCount:', e); }
+  try { buildChecks(); } catch(e) { console.error('buildChecks:', e); }
+  try { buildPrechecks(); } catch(e) { console.error('buildPrechecks:', e); }
+  try { loadDraft(); } catch(e) { console.error('loadDraft:', e); }
+
+  // 念のため基本情報ページを確実に表示
+  var pg = document.getElementById('page-header');
+  if (pg) pg.style.display = 'block';
 }
 
 if (document.readyState === 'loading') {
