@@ -215,7 +215,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     <div class="title">📋 USX 運転記録表</div>
     <div class="subtitle">ユニバーサルスマートX 単体点検入力</div>
   </div>
-  <button class="header-btn" data-action="saveModal">💾 保存</button>
+  <button class="header-btn" data-action="saveModal">💾 サーバー保存</button>
 </header>
 
 <div class="tab-bar" id="tabBar">
@@ -365,7 +365,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       </div>
       <div>
         <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:8px;">📄 入力データプレビュー</div>
-        <pre id="json-preview" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;font-size:11px;overflow:auto;max-height:360px;color:var(--gray-700);font-family:monospace;"></pre>
+        <pre id="json-preview" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;font-size:11px;overflow:auto;max-height:360px;color:var(--gray-700)">...</pre>
       </div>
     </div>
   </div>
@@ -374,10 +374,10 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 <!-- 記録一覧 -->
 <div class="page" id="page-list">
   <div class="card">
-    <div class="card-header">📂 保存済み記録一覧</div>
+    <div class="card-header">📂 サーバー保存済み記録一覧</div>
     <div class="card-body">
-      <div id="record-list-body">
-        <p style="color:var(--gray-600);font-size:13px;">保存された記録はありません</p>
+      <div id="record-list-body" style="text-align:center;padding:20px;">
+        <p style="color:var(--gray-600);font-size:13px;">⏳ 読み込み中...</p>
       </div>
     </div>
   </div>
@@ -386,9 +386,9 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 <!-- 保存モーダル -->
 <div id="save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;padding:24px;margin:20px;max-width:380px;width:100%;">
-    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">💾 記録を保存</div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">💾 サーバーに保存</div>
     <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:6px;">保存名（現場名など）</div>
-    <input type="text" id="save-name-input" placeholder="例: ○○小学校 R-1系統" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:9px;font-size:15px;margin-bottom:16px;">
+    <input type="text" id="save-name-input" placeholder="例: ○○小学校 R-1系統" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:9px;font-size:15px;margin-bottom:14px;">
     <div style="display:flex;gap:10px;">
       <button data-action="hideSaveModal" style="flex:1;padding:11px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:14px;font-weight:700;cursor:pointer;">キャンセル</button>
       <button data-action="saveRecord" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">保存</button>
@@ -400,8 +400,6 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
 <script>
 // ===== 計測項目定義 =====
-// circuit: true  → A/B/C/D 各回路で個別入力
-// circuit: false → 熱源機共通（A列のみ入力）
 var MEAS = [
   {key:'運転時間',           label:'運転時間',          unit:'h',       ref:'',          circuit:true,  grp:'基本'},
   {key:'運転回数',           label:'運転回数',          unit:'回',      ref:'',          circuit:true,  grp:'基本'},
@@ -454,20 +452,17 @@ var PRECHECK_ITEMS = [
   '水配管フラッシング','12時間前通電','冷媒漏洩点検','インターロック動作確認',
 ];
 
-var pillState = {};   // group -> val
+var pillState = {};
 var preCheckState = {};
+var currentUnitCount = 1;
 
 // ===== UI構築 =====
-var currentUnitCount = 1; // 現在表示中の台数
-
 function setUnitCount(n) {
   currentUnitCount = n;
-  // カウントボタンのactive更新
   var btns = document.querySelectorAll('.unit-count-btn');
   for (var i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('active', i + 1 === n);
   }
-  // タブ再描画
   renderUnitTabs(n);
   showUnit(1);
 }
@@ -480,7 +475,6 @@ function renderUnitTabs(n) {
     html += '<button class="unit-tab' + (u===1?' active':'') + '" data-unit="' + u + '">No.' + u + '</button>';
   }
   container.innerHTML = html;
-  // n台より多い分のパネルを非表示
   for (var u = 1; u <= 12; u++) {
     var p = document.getElementById('unit-panel-' + u);
     if (p) p.style.display = (u === 1 && u <= n) ? 'block' : 'none';
@@ -560,7 +554,6 @@ function buildPrechecks() {
   }
   body.innerHTML = html;
 
-  // 事前点検ボタンのイベント
   var btns = body.querySelectorAll('.pc-btn');
   for (var j = 0; j < btns.length; j++) {
     btns[j].addEventListener('click', function() {
@@ -579,23 +572,19 @@ function buildPrechecks() {
   }
 }
 
-// ===== ピル選択（作業区分・チェック結果など） =====
+// ===== イベント =====
 document.addEventListener('click', function(e) {
   var el = e.target;
 
-  // タブ切り替え
   var tabEl = el.closest ? el.closest('[data-tab]') : null;
   if (tabEl) { showTab(tabEl.getAttribute('data-tab')); return; }
 
-  // ユニットタブ
   var unitEl = el.closest ? el.closest('[data-unit]') : null;
   if (unitEl) { showUnit(parseInt(unitEl.getAttribute('data-unit'), 10)); return; }
 
-  // 台数選択
   var countEl = el.closest ? el.closest('[data-count]') : null;
   if (countEl) { setUnitCount(parseInt(countEl.getAttribute('data-count'), 10)); return; }
 
-  // アクション
   var actEl = el.closest ? el.closest('[data-action]') : null;
   if (actEl) {
     var act = actEl.getAttribute('data-action');
@@ -606,13 +595,11 @@ document.addEventListener('click', function(e) {
     if (act === 'saveRecord')    { saveRecord(); return; }
   }
 
-  // 記録の読込・削除
   var loadEl = el.closest ? el.closest('[data-record-load]') : null;
   if (loadEl) { loadRecord(loadEl.getAttribute('data-record-load')); return; }
   var delEl = el.closest ? el.closest('[data-record-del]') : null;
   if (delEl) { deleteRecord(delEl.getAttribute('data-record-del')); return; }
 
-  // ピル選択（作業区分・チェック結果）
   var pill = el.closest ? el.closest('.pill') : null;
   if (pill) {
     var group = pill.getAttribute('data-group');
@@ -651,15 +638,12 @@ function showTab(name) {
 }
 
 function showUnit(n) {
-  // 全パネル非表示
   for (var u = 1; u <= 12; u++) {
     var p = document.getElementById('unit-panel-' + u);
     if (p) p.style.display = 'none';
   }
-  // 選択パネルのみ表示
   var p = document.getElementById('unit-panel-' + n);
   if (p) p.style.display = 'block';
-  // タブのactive更新
   var tabs = document.querySelectorAll('.unit-tab');
   for (var i = 0; i < tabs.length; i++) {
     tabs[i].classList.toggle('active', i + 1 === n);
@@ -687,7 +671,6 @@ function collectData() {
   if (pillState['kubun']) d['作業区分'] = pillState['kubun'];
   if (pillState['fron'])  d['フロン区分'] = pillState['fron'];
 
-  // 熱源機
   d['熱源機'] = [];
   for (var u = 1; u <= 12; u++) {
     var unit = {};
@@ -711,7 +694,6 @@ function collectData() {
     if (Object.keys(unit).length > 0) d['熱源機'].push(unit);
   }
 
-  // チェック結果
   d['チェック結果'] = {};
   var pills = document.querySelectorAll('.pill.selected-red[data-group]');
   for (var i = 0; i < pills.length; i++) {
@@ -768,16 +750,6 @@ function generateExcel() {
 }
 
 // ===== 現場記録 保存・一覧・呼び出し =====
-var RECORDS_KEY = 'usx_records';
-
-function getRecords() {
-  try { return JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]'); } catch(e) { return []; }
-}
-
-function saveRecords(records) {
-  try { localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch(e) {}
-}
-
 function showSaveModal() {
   var data = collectData();
   var name = data['現場名'] || '';
@@ -795,33 +767,62 @@ function saveRecord() {
   var name = document.getElementById('save-name-input').value.trim();
   if (!name) { toast('保存名を入力してください'); return; }
   var data = collectData();
-  var records = getRecords();
-  var now = new Date();
-  var ts = now.getFullYear() + '/' + ('0'+(now.getMonth()+1)).slice(-2) + '/' + ('0'+now.getDate()).slice(-2) + ' ' + ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2);
-  var id = Date.now().toString();
-  records.unshift({ id: id, name: name, ts: ts, data: data });
-  saveRecords(records);
-  hideSaveModal();
-  toast('「' + name + '」を保存しました');
-  renderRecordList();
+  
+  var btn = document.querySelector('[data-action="saveRecord"]');
+  btn.disabled = true;
+  btn.textContent = '⏳ 保存中...';
+  
+  fetch('/api/records', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: name, data: data })
+  })
+  .then(function(res) {
+    if (!res.ok) return res.json().then(function(e){ throw new Error(e.error); });
+    return res.json();
+  })
+  .then(function(result) {
+    hideSaveModal();
+    toast('✅ 「' + name + '」をサーバーに保存しました');
+    renderRecordList();
+  })
+  .catch(function(e) {
+    toast('❌ 保存エラー: ' + e.message);
+  })
+  .finally(function() {
+    btn.disabled = false;
+    btn.textContent = '保存';
+  });
 }
 
 function deleteRecord(id) {
-  var records = getRecords().filter(function(r){ return r.id !== id; });
-  saveRecords(records);
-  renderRecordList();
-  toast('削除しました');
+  if (!confirm('この記録を削除しますか？')) return;
+  fetch('/api/records/' + id, { method: 'DELETE' })
+  .then(function(res) {
+    if (!res.ok) throw new Error('削除に失敗しました');
+    renderRecordList();
+    toast('✅ 削除しました');
+  })
+  .catch(function(e) {
+    toast('❌ エラー: ' + e.message);
+  });
 }
 
 function loadRecord(id) {
-  var records = getRecords();
-  var rec = null;
-  for (var i = 0; i < records.length; i++) { if (records[i].id === id) { rec = records[i]; break; } }
-  if (!rec) return;
-  clearForm();
-  restoreData(rec.data);
-  showTab('header');
-  toast('「' + rec.name + '」を読み込みました');
+  fetch('/api/records/' + id)
+  .then(function(res) {
+    if (!res.ok) throw new Error('読み込みに失敗しました');
+    return res.json();
+  })
+  .then(function(rec) {
+    clearForm();
+    restoreData(rec.data);
+    showTab('header');
+    toast('✅ 「' + rec.name + '」を読み込みました');
+  })
+  .catch(function(e) {
+    toast('❌ エラー: ' + e.message);
+  });
 }
 
 function clearForm() {
@@ -850,39 +851,45 @@ function clearForm() {
 function renderRecordList() {
   var body = document.getElementById('record-list-body');
   if (!body) return;
-  var records = getRecords();
-  if (records.length === 0) {
-    body.innerHTML = '<p style="color:var(--gray-600);font-size:13px;text-align:center;padding:20px;">保存された記録はありません</p>';
-    return;
-  }
-  var html = '';
-  for (var i = 0; i < records.length; i++) {
-    var r = records[i];
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:10px;">';
-    html += '<div style="flex:1;min-width:0;">';
-    html += '<div style="font-size:14px;font-weight:700;color:var(--gray-900);margin-bottom:3px;">' + r.name + '</div>';
-    html += '<div style="font-size:11px;color:var(--gray-600);">保存日時: ' + r.ts + '</div>';
-    html += '</div>';
-    html += '<div style="display:flex;gap:8px;margin-left:10px;flex-shrink:0;">';
-    html += '<button data-record-load="' + r.id + '" style="padding:7px 14px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">読込</button>';
-    html += '<button data-record-del="' + r.id + '" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;">削除</button>';
-    html += '</div></div>';
-  }
-  html += '<div style="text-align:center;margin-top:6px;"><button data-action="newRecord" style="padding:10px 24px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:13px;font-weight:700;cursor:pointer;">＋ 新規入力</button></div>';
-  body.innerHTML = html;
+  
+  body.innerHTML = '<p style="color:var(--gray-600);font-size:13px;text-align:center;padding:20px;">⏳ 読み込み中...</p>';
+  
+  fetch('/api/records')
+  .then(function(res) {
+    if (!res.ok) throw new Error('読み込みに失敗しました');
+    return res.json();
+  })
+  .then(function(records) {
+    if (records.length === 0) {
+      body.innerHTML = '<p style="color:var(--gray-600);font-size:13px;text-align:center;padding:20px;">📭 保存された記録はありません</p>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      var ts = new Date(r.created_at).toLocaleString('ja-JP');
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:10px;">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-size:14px;font-weight:700;color:var(--gray-900);margin-bottom:3px;">' + r.name + '</div>';
+      html += '<div style="font-size:11px;color:var(--gray-600);">保存日時: ' + ts + '</div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:8px;margin-left:10px;flex-shrink:0;">';
+      html += '<button data-record-load="' + r.id + '" style="padding:7px 14px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">読込</button>';
+      html += '<button data-record-del="' + r.id + '" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;">削除</button>';
+      html += '</div></div>';
+    }
+    html += '<div style="text-align:center;margin-top:6px;"><button data-action="newRecord" style="padding:10px 24px;border-radius:9px;border:1.5px solid var(--gray-200);background:#fff;font-size:13px;font-weight:700;cursor:pointer;">➕ 新規入力</button></div>';
+    body.innerHTML = html;
+  })
+  .catch(function(e) {
+    body.innerHTML = '<p style="color:var(--red);font-size:13px;text-align:center;padding:20px;">❌ エラー: ' + e.message + '</p>';
+  });
 }
-
 
 function newRecord() {
   clearForm();
   showTab('header');
-  toast('新規入力を開始します');
-}
-
-// 旧互換
-function saveDraft() { showSaveModal(); }
-function loadDraft() {
-  // 起動時に最新記録を自動復元しない（一覧から選ぶ方式に変更）
+  toast('✅ 新規入力を開始します');
 }
 
 function restoreData(data) {
@@ -955,7 +962,6 @@ function toast(msg) {
 // ===== 初期化 =====
 function init() {
   try {
-    // 全ページ非表示→最初のページのみ表示
     for (var i = 0; i < TABS.length; i++) {
       var pg = document.getElementById('page-' + TABS[i]);
       if (pg) pg.style.display = (TABS[i] === 'header') ? 'block' : 'none';
@@ -966,9 +972,7 @@ function init() {
   try { setUnitCount(1); } catch(e) { console.error('setUnitCount:', e); }
   try { buildChecks(); } catch(e) { console.error('buildChecks:', e); }
   try { buildPrechecks(); } catch(e) { console.error('buildPrechecks:', e); }
-  try { loadDraft(); } catch(e) { console.error('loadDraft:', e); }
 
-  // 念のため基本情報ページを確実に表示
   var pg = document.getElementById('page-header');
   if (pg) pg.style.display = 'block';
 }
