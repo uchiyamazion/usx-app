@@ -16,10 +16,18 @@ app = Flask(__name__, static_folder=os.path.join(BASE, 'static'))
 # ===== Excel生成 =====
 
 UNIT_COLS = [
-    {"no":"G","A":"G","B":"H","C":"I","D":"J"},
-    {"no":"K","A":"K","B":"L","C":"M","D":"N"},
-    {"no":"O","A":"O","B":"P","C":"Q","D":"R"},
-    {"no":"S","A":"S","B":"T","C":"U","D":"V"},
+    {"no":"G",  "A":"G",  "B":"H",  "C":"I",  "D":"J"},
+    {"no":"K",  "A":"K",  "B":"L",  "C":"M",  "D":"N"},
+    {"no":"O",  "A":"O",  "B":"P",  "C":"Q",  "D":"R"},
+    {"no":"S",  "A":"S",  "B":"T",  "C":"U",  "D":"V"},
+    {"no":"W",  "A":"W",  "B":"X",  "C":"Y",  "D":"Z"},
+    {"no":"AA", "A":"AA", "B":"AB", "C":"AC", "D":"AD"},
+    {"no":"AE", "A":"AE", "B":"AF", "C":"AG", "D":"AH"},
+    {"no":"AI", "A":"AI", "B":"AJ", "C":"AK", "D":"AL"},
+    {"no":"AM", "A":"AM", "B":"AN", "C":"AO", "D":"AP"},
+    {"no":"AQ", "A":"AQ", "B":"AR", "C":"AS", "D":"AT"},
+    {"no":"AU", "A":"AU", "B":"AV", "C":"AW", "D":"AX"},
+    {"no":"AY", "A":"AY", "B":"AZ", "C":"BA", "D":"BB"},
 ]
 
 FIELD_ROWS = [
