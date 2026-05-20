@@ -117,13 +117,12 @@ def write_sheet(ws, data, unit_start, unit_end):
     if data.get('作業日時'):   safe_set(ws, 'T3', data['作業日時'])
     if data.get('作業者'):     safe_set(ws, 'T4', data['作業者'])
     if data.get('系統名'):     safe_set(ws, 'E5', data['系統名'])
-    # 型式はG6に一括入力
-    if data.get('型式'):       safe_set(ws, 'G6', data['型式'])
+    if data.get('型式'):       safe_set(ws, 'F6', data['型式'])
     if data.get('運転状態'):   safe_set(ws, 'E7', data['運転状態'])
     if data.get('設定温度'):   safe_set(ws, 'F7', str(data['設定温度']) + '℃')
     if data.get('連結台数'):   safe_set(ws, 'T7', data['連結台数'])
     if data.get('設置年月日'): safe_set(ws, 'E8', data['設置年月日'])
-    if data.get('冷媒種類'):   safe_set(ws, 'K8', data['冷媒種類'])
+    if data.get('冷媒種類'):   safe_set(ws, 'I8', data['冷媒種類'])
     if data.get('作成者'):     safe_set(ws, 'T70', data['作成者'])
 
     for k, cell in {'試運転':'D4','定期点検':'F4','簡易点検':'H4','修理':'J4','整備':'L4','故障判定':'N4'}.items():
@@ -169,7 +168,7 @@ def write_sheet(ws, data, unit_start, unit_end):
         safe_set(ws, ok_cell, '■ＯＫ' if result == 'OK' else '□ＯＫ')
         safe_set(ws, ng_cell, '■NG'   if result == 'NG' else '□NG')
 
-    if data.get('備考'): safe_set(ws, 'A71', data['備考'])
+    if data.get('備考'): safe_set(ws, 'B71', data['備考'])
 
 def generate_excel(data: dict) -> str:
     template = os.path.join(BASE, 'template.xlsx')
