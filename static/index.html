@@ -76,7 +76,7 @@ header {
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label { font-size: 11px; font-weight: 700; color: var(--gray-600); letter-spacing: 0.03em; }
 
-input[type=text], input[type=number], select, textarea {
+input[type=text], input[type=number], input[type=date], select, textarea {
   width: 100%; padding: 10px 11px;
   border: 1.5px solid var(--gray-200); border-radius: 9px;
   font-size: 15px; color: var(--gray-900); background: #fff;
@@ -237,7 +237,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
         <div class="field"><label>住所</label><input type="text" id="住所" placeholder="例: 札幌市中央区北1条西2丁目"></div>
       </div>
       <div class="fg fg-3">
-        <div class="field"><label>作業日時</label><input type="text" id="作業日時" placeholder="例: 2025/06/01 09:00"></div>
+        <div class="field"><label>作業日時</label><input type="date" id="作業日時"></div>
         <div class="field"><label>作業者</label><input type="text" id="作業者" placeholder="氏名"></div>
         <div class="field"><label>作成者</label><input type="text" id="作成者" placeholder="氏名"></div>
       </div>
@@ -274,7 +274,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
         <div class="field"><label>型式 RUA-</label><input type="text" id="型式_RUA"></div>
         <div class="field"><label>型式 UP</label><input type="text" id="型式_UP"></div>
         <div class="field"><label>型式 HKZGM</label><input type="text" id="型式_HKZGM"></div>
-        <div class="field"><label>設置年月日</label><input type="text" id="設置年月日" placeholder="2023/04/01"></div>
+        <div class="field"><label>設置年月日</label><input type="date" id="設置年月日"></div>
         <div class="field"><label>冷媒種類</label>
           <select id="冷媒種類"><option value="">選択</option><option>R-410A</option><option>R-134a</option><option>R-32</option><option>R-404A</option><option>R-407C</option></select>
         </div>
@@ -328,7 +328,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 <!-- チェック結果 -->
 <div class="page" id="page-checks">
   <div class="card">
-    <div class="card-header">✅ チェック結果（異常箇所にチェック）</div>
+    <div class="card-header">✅ ���ェック結果（異常箇所にチェック）</div>
     <div class="card-body" id="checks-body"></div>
   </div>
   <div class="nav-row">
@@ -488,10 +488,10 @@ function buildUnitPanels() {
   for (var u = 1; u <= 12; u++) {
     html += '<div class="unit-panel" id="unit-panel-' + u + '" style="display:none;">';
     html += '<div class="fg fg-3" style="gap:10px;margin-bottom:14px;">';
-    html += '<div class="field"><label>No.</label><input type="text" id="u' + u + '_No" placeholder="1"></div>';
+    html += '<div class="field"><label>No.</label><input type="text" id="u' + u + '_No" placeholder="1" data-no-persist="false"></div>';
     html += '<div class="field"><label>UC製造番号</label><input type="text" id="u' + u + '_UC製造番号"></div>';
     html += '<div class="field"><label>冷却/加熱</label><select id="u' + u + '_冷却加熱"><option value="">選択</option><option>冷却</option><option>加熱</option></select></div>';
-    html += '<div class="field"><label>製造年</label><input type="text" id="u' + u + '_製造年" placeholder="例: 2020年"></div>';
+    html += '<div class="field"><label>製造年</label><input type="date" id="u' + u + '_製造年"></div>';
     html += '<div class="field"><label>記録時間</label><input type="text" id="u' + u + '_記録時間" placeholder="例: 10:30"></div>';
     html += '</div>';
 
@@ -656,13 +656,30 @@ function getVal(id) {
   return el ? el.value : '';
 }
 
+function formatDateForExcel(dateStr) {
+  // HTML5 date形式（YYYY-MM-DD）をExcel形式に変換
+  if (!dateStr) return '';
+  var parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return parts[0] + '/' + parts[1] + '/' + parts[2];
+  }
+  return dateStr;
+}
+
 function collectData() {
   var d = {};
-  var textFields = ['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考'];
+  var textFields = ['現場名','住所','作業者','作成者','系統名','設定温度','連結台数','備考'];
   for (var i = 0; i < textFields.length; i++) {
     var v = getVal(textFields[i]);
     if (v) d[textFields[i]] = v;
   }
+  
+  // 日付フィールド
+  var dateVal = getVal('作業日時');
+  if (dateVal) d['作業日時'] = formatDateForExcel(dateVal);
+  var dateVal2 = getVal('設置年月日');
+  if (dateVal2) d['設置年月日'] = formatDateForExcel(dateVal2);
+  
   var selFields = ['運転状態','冷媒種類'];
   for (var i = 0; i < selFields.length; i++) {
     var v = getVal(selFields[i]);
@@ -677,7 +694,13 @@ function collectData() {
     var uFields = ['No','UC製造番号','冷却加熱','製造年','記録時間'];
     for (var fi = 0; fi < uFields.length; fi++) {
       var v = getVal('u' + u + '_' + uFields[fi]);
-      if (v) unit[uFields[fi]] = v;
+      if (v) {
+        if (uFields[fi] === '製造年') {
+          unit[uFields[fi]] = formatDateForExcel(v);
+        } else {
+          unit[uFields[fi]] = v;
+        }
+      }
     }
     for (var mi = 0; mi < MEAS.length; mi++) {
       var m = MEAS[mi];
@@ -892,11 +915,26 @@ function newRecord() {
   toast('✅ 新規入力を開始します');
 }
 
+function convertDateFromExcel(dateStr) {
+  // Excel形式（YYYY/MM/DD）をHTML5 date形式（YYYY-MM-DD）に変換
+  if (!dateStr) return '';
+  var parts = dateStr.split('/');
+  if (parts.length === 3) {
+    return parts[0] + '-' + ('0' + parts[1]).slice(-2) + '-' + ('0' + parts[2]).slice(-2);
+  }
+  return dateStr;
+}
+
 function restoreData(data) {
-  var textFields = ['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考'];
+  var textFields = ['現場名','住所','作業者','作成者','系統名','設定温度','連結台数','備考'];
   for (var i = 0; i < textFields.length; i++) {
     if (data[textFields[i]] !== undefined) { var el = document.getElementById(textFields[i]); if (el) el.value = data[textFields[i]]; }
   }
+  
+  // 日付フィールド
+  if (data['作業日時']) { var el = document.getElementById('作業日時'); if (el) el.value = convertDateFromExcel(data['作業日時']); }
+  if (data['設置年月日']) { var el = document.getElementById('設置年月日'); if (el) el.value = convertDateFromExcel(data['設置年月日']); }
+  
   var selFields = ['運転状態','冷媒種類'];
   for (var i = 0; i < selFields.length; i++) {
     if (data[selFields[i]]) { var el = document.getElementById(selFields[i]); if (el) el.value = data[selFields[i]]; }
@@ -914,7 +952,16 @@ function restoreData(data) {
       var unit = data['熱源機'][u];
       var uFields = ['No','UC製造番号','冷却加熱','製造年','記録時間'];
       for (var fi = 0; fi < uFields.length; fi++) {
-        if (unit[uFields[fi]] !== undefined) { var el = document.getElementById('u' + (u+1) + '_' + uFields[fi]); if (el) el.value = unit[uFields[fi]]; }
+        if (unit[uFields[fi]] !== undefined) {
+          var el = document.getElementById('u' + (u+1) + '_' + uFields[fi]);
+          if (el) {
+            if (uFields[fi] === '製造年') {
+              el.value = convertDateFromExcel(unit[uFields[fi]]);
+            } else {
+              el.value = unit[uFields[fi]];
+            }
+          }
+        }
       }
       for (var mi = 0; mi < MEAS.length; mi++) {
         var m = MEAS[mi];
