@@ -44,18 +44,18 @@ def get_db():
 # ===== Excel生成 =====
 
 UNIT_COLS = [
-    {"no":"G",  "A":"G",  "B":"H",  "C":"I",  "D":"J"},
-    {"no":"K",  "A":"K",  "B":"L",  "C":"M",  "D":"N"},
-    {"no":"O",  "A":"O",  "B":"P",  "C":"Q",  "D":"R"},
-    {"no":"S",  "A":"S",  "B":"T",  "C":"U",  "D":"V"},
-    {"no":"W",  "A":"W",  "B":"X",  "C":"Y",  "D":"Z"},
-    {"no":"AA", "A":"AA", "B":"AB", "C":"AC", "D":"AD"},
-    {"no":"AE", "A":"AE", "B":"AF", "C":"AG", "D":"AH"},
-    {"no":"AI", "A":"AI", "B":"AJ", "C":"AK", "D":"AL"},
-    {"no":"AM", "A":"AM", "B":"AN", "C":"AO", "D":"AP"},
-    {"no":"AQ", "A":"AQ", "B":"AR", "C":"AS", "D":"AT"},
-    {"no":"AU", "A":"AU", "B":"AV", "C":"AW", "D":"AX"},
-    {"no":"AY", "A":"AY", "B":"AZ", "C":"BA", "D":"BB"},
+    {"no":"G",  "no_val":"H",  "A":"G",  "B":"H",  "C":"I",  "D":"J"},
+    {"no":"K",  "no_val":"L",  "A":"K",  "B":"L",  "C":"M",  "D":"N"},
+    {"no":"O",  "no_val":"P",  "A":"O",  "B":"P",  "C":"Q",  "D":"R"},
+    {"no":"S",  "no_val":"T",  "A":"S",  "B":"T",  "C":"U",  "D":"V"},
+    {"no":"W",  "no_val":"X",  "A":"W",  "B":"X",  "C":"Y",  "D":"Z"},
+    {"no":"AA", "no_val":"AB", "A":"AA", "B":"AB", "C":"AC", "D":"AD"},
+    {"no":"AE", "no_val":"AF", "A":"AE", "B":"AF", "C":"AG", "D":"AH"},
+    {"no":"AI", "no_val":"AJ", "A":"AI", "B":"AJ", "C":"AK", "D":"AL"},
+    {"no":"AM", "no_val":"AN", "A":"AM", "B":"AN", "C":"AO", "D":"AP"},
+    {"no":"AQ", "no_val":"AR", "A":"AQ", "B":"AR", "C":"AS", "D":"AT"},
+    {"no":"AU", "no_val":"AV", "A":"AU", "B":"AV", "C":"AW", "D":"AX"},
+    {"no":"AY", "no_val":"AZ", "A":"AY", "B":"AZ", "C":"BA", "D":"BB"},
 ]
 
 FIELD_ROWS = [
@@ -198,13 +198,13 @@ def generate_excel(data: dict) -> str:
             
             u = units[unit_idx]
             cols = UNIT_COLS[local_idx]
-            nc = cols['no']
             
-            if u.get('No'):         safe_set(ws, f'{nc}11', u['No'])
-            if u.get('UC製造番号'): safe_set(ws, f'{nc}12', u['UC製造番号'])
-            if u.get('冷却加熱'):   safe_set(ws, f'{nc}13', u['冷却加熱'])
-            if u.get('製造年'):     safe_set(ws, f'{nc}14', u['製造年'])
-            if u.get('記録時間'):   safe_set(ws, f'{nc}49', u['記録時間'])
+            # Noをno_valセルに書き込む（G11に"No"があるので、その隣のH11などに数字を入れる）
+            if u.get('No'):         safe_set(ws, f'{cols["no_val"]}11', u['No'])
+            if u.get('UC製造番号'): safe_set(ws, f'{cols["no_val"]}12', u['UC製造番号'])
+            if u.get('冷却加熱'):   safe_set(ws, f'{cols["no_val"]}13', u['冷却加熱'])
+            if u.get('製造年'):     safe_set(ws, f'{cols["no_val"]}14', u['製造年'])
+            if u.get('記録時間'):   safe_set(ws, f'{cols["no_val"]}49', u['記録時間'])
 
             for field, row, is_circuit in FIELD_ROWS:
                 if is_circuit:
