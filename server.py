@@ -114,7 +114,9 @@ def write_sheet(ws, data, unit_start, unit_end):
     # 基本情報
     if data.get('現場名'):     safe_set(ws, 'D2', data['現場名'])
     if data.get('住所'):       safe_set(ws, 'D3', data['住所'])
-    if data.get('作業日時'):   safe_set(ws, 'T3', data['作業日時'])
+    if data.get('作業日時'):
+        dt = data['作業日時'].replace('T', ' ')  # 2025-06-01T09:00 → 2025-06-01 09:00
+        safe_set(ws, 'T3', dt)
     if data.get('作業者'):     safe_set(ws, 'T4', data['作業者'])
     if data.get('系統名'):     safe_set(ws, 'E5', data['系統名'])
     if data.get('型式'):       safe_set(ws, 'F6', data['型式'])
@@ -277,3 +279,192 @@ if __name__ == '__main__':
         print(f' スマホ用URL: http://{ip}:{port}')
         threading.Thread(target=open_browser, args=(port,), daemon=True).start()
     app.run(host='0.0.0.0', port=port, debug=False)
+
+# ===== 写真API =====
+
+def resize_image(img_bytes, max_w=800, max_h=600):
+    """画像をリサイズしてJPEGバイト列で返す"""
+    img = PILImage.open(io.BytesIO(img_bytes))
+    img = img.convert('RGB')
+    img.thumbnail((max_w, max_h), PILImage.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG', quality=85)
+    return buf.getvalue()
+
+@app.route('/api/photos/<record_id>', methods=['GET'])
+def get_photos(record_id):
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            'SELECT id, filename, caption, created_at FROM photos WHERE record_id=? ORDER BY created_at',
+            (record_id,)).fetchall()
+        conn.close()
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/photos/<record_id>', methods=['POST'])
+def upload_photo(record_id):
+    try:
+        body = request.get_json(force=True)
+        img_b64  = body.get('image', '')   # base64 data URL
+        caption  = body.get('caption', '')
+        if not img_b64:
+            return jsonify({'error': 'No image'}), 400
+
+        # base64デコード
+        if ',' in img_b64:
+            img_b64 = img_b64.split(',', 1)[1]
+        img_bytes = base64.b64decode(img_b64)
+        img_bytes = resize_image(img_bytes)
+
+        pid = str(uuid.uuid4())
+        filename = f'{pid}.jpg'
+        filepath = os.path.join(IMG_DIR, filename)
+        with open(filepath, 'wb') as f:
+            f.write(img_bytes)
+
+        now = datetime.now().isoformat()
+        conn = get_db()
+        conn.execute(
+            'INSERT INTO photos (id, record_id, filename, caption, created_at) VALUES (?,?,?,?,?)',
+            (pid, record_id, filename, caption, now))
+        conn.commit(); conn.close()
+        return jsonify({'id': pid, 'caption': caption, 'created_at': now}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/photos/item/<photo_id>', methods=['DELETE'])
+def delete_photo(photo_id):
+    try:
+        conn = get_db()
+        row = conn.execute('SELECT filename FROM photos WHERE id=?', (photo_id,)).fetchone()
+        if row:
+            filepath = os.path.join(IMG_DIR, row['filename'])
+            if os.path.exists(filepath): os.remove(filepath)
+            conn.execute('DELETE FROM photos WHERE id=?', (photo_id,))
+            conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/photos/file/<photo_id>', methods=['GET'])
+def get_photo_file(photo_id):
+    try:
+        conn = get_db()
+        row = conn.execute('SELECT filename FROM photos WHERE id=?', (photo_id,)).fetchone()
+        conn.close()
+        if not row: return jsonify({'error': 'Not found'}), 404
+        return send_file(os.path.join(IMG_DIR, row['filename']), mimetype='image/jpeg')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/generate_with_photos', methods=['POST'])
+def generate_with_photos():
+    try:
+        body = request.get_json(force=True)
+        data = body.get('data', {})
+        record_id = body.get('record_id', '')
+
+        # 運転記録Excel生成
+        template = os.path.join(BASE, 'template.xlsx')
+        photo_template = os.path.join(BASE, 'photo_template.xlsx')
+        out_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'USX運転記録')
+        os.makedirs(out_dir, exist_ok=True)
+        ts   = datetime.now().strftime('%Y%m%d_%H%M%S')
+        site = data.get('現場名', '').replace('/', '_').replace(' ', '_')[:20]
+        out_path = os.path.join(out_dir, f'運転記録表_{site}_{ts}.xlsx')
+
+        shutil.copy2(template, out_path)
+        wb = load_workbook(out_path)
+
+        sheet_ranges = [(0,4),(4,8),(8,12)]
+        while len(wb.worksheets) < len(sheet_ranges):
+            wb.copy_worksheet(wb.worksheets[0])
+
+        for sheet_idx, (start, end) in enumerate(sheet_ranges):
+            if sheet_idx >= len(wb.worksheets): break
+            write_sheet(wb.worksheets[sheet_idx], data, start, end)
+
+        # 写真台帳を追加
+        if record_id and os.path.exists(photo_template):
+            conn = get_db()
+            photos = conn.execute(
+                'SELECT id, filename, caption, created_at FROM photos WHERE record_id=? ORDER BY created_at',
+                (record_id,)).fetchall()
+            conn.close()
+
+            if photos:
+                wb_photo = load_workbook(photo_template)
+                photos_per_sheet = 3
+                sheet_idx = 0
+
+                for i, photo in enumerate(photos):
+                    local_idx = i % photos_per_sheet
+                    if local_idx == 0 and i > 0:
+                        sheet_idx += 1
+
+                    if sheet_idx >= len(wb_photo.worksheets) - 1:
+                        break
+
+                    ws_p = wb_photo.worksheets[sheet_idx]
+                    filepath = os.path.join(IMG_DIR, photo['filename'])
+                    if not os.path.exists(filepath): continue
+
+                    # 写真エリアの行: 1枚目=3-23行, 2枚目=25-45行, 3枚目=47-67行
+                    photo_rows = [(3, 23), (25, 45), (47, 67)]
+                    info_rows  = [
+                        {'no': 3, 'date': 4, 'author': 5, 'place': 6, 'content_start': 7},
+                        {'no': 25, 'date': 26, 'author': 27, 'place': 28, 'content_start': 29},
+                        {'no': 47, 'date': 48, 'author': 49, 'place': 50, 'content_start': 51},
+                    ]
+
+                    pr = photo_rows[local_idx]
+                    ir = info_rows[local_idx]
+
+                    # 写真を貼り付け
+                    try:
+                        xl_img = XLImage(filepath)
+                        # B列の幅から画像サイズを計算（約150px幅）
+                        xl_img.width  = 380
+                        xl_img.height = 285
+                        col_letter = 'B'
+                        anchor = f'{col_letter}{pr[0]}'
+                        ws_p.add_image(xl_img, anchor)
+                    except Exception:
+                        pass
+
+                    # キャプション・撮影日を書き込み
+                    created = photo['created_at'][:10] if photo['created_at'] else ''
+                    caption = photo['caption'] or ''
+                    ws_p.cell(ir['date'], 8, created)
+                    ws_p.cell(ir['content_start'], 8, caption)
+
+                # 写真シートをメインワークブックにコピー
+                for ws_p in wb_photo.worksheets:
+                    if ws_p.title == '写真 (追加用)': continue
+                    ws_new = wb.create_sheet(title=ws_p.title)
+                    for row in ws_p.iter_rows():
+                        for cell in row:
+                            new_cell = ws_new.cell(cell.row, cell.column, cell.value)
+                            if cell.has_style:
+                                new_cell.font      = cell.font.copy()
+                                new_cell.border    = cell.border.copy()
+                                new_cell.fill      = cell.fill.copy()
+                                new_cell.alignment = cell.alignment.copy()
+                    for mc in ws_p.merged_cells.ranges:
+                        ws_new.merge_cells(str(mc))
+                    for img in ws_p._images:
+                        ws_new.add_image(img)
+                    for col in ws_p.column_dimensions:
+                        ws_new.column_dimensions[col].width = ws_p.column_dimensions[col].width
+                    for row in ws_p.row_dimensions:
+                        ws_new.row_dimensions[row].height = ws_p.row_dimensions[row].height
+
+        wb.save(out_path)
+        return send_file(out_path, as_attachment=True,
+                         download_name=os.path.basename(out_path),
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
