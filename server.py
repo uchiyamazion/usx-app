@@ -2,11 +2,14 @@
 USX 単体運転記録表 ローカルサーバー
 ダブルクリックで起動 → ブラウザが自動で開く → ボタン1つでExcel出力
 """
-import sys, os, json, shutil, threading, webbrowser, sqlite3, uuid
+import sys, os, json, shutil, threading, webbrowser, sqlite3, uuid, base64
 from datetime import datetime
 from flask import Flask, request, send_file, send_from_directory, jsonify
 from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
+from openpyxl.drawing.image import Image as XLImage
+from PIL import Image
+from io import BytesIO
 
 # PyInstallerでexe化した場合のパス解決
 BASE = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
@@ -16,7 +19,9 @@ app = Flask(__name__, static_folder=os.path.join(BASE, 'static'))
 # ===== データベース設定 =====
 
 DB_PATH = os.path.join(os.path.expanduser('~'), '.usx_app', 'records.db')
+IMG_DIR = os.path.join(os.path.expanduser('~'), '.usx_app', 'photos')
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+os.makedirs(IMG_DIR, exist_ok=True)
 
 def init_db():
     """データベース初期化"""
@@ -30,6 +35,15 @@ def init_db():
             data TEXT NOT NULL
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS photos (
+            id TEXT PRIMARY KEY,
+            record_id TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            caption TEXT,
+            created_at TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -40,6 +54,21 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+# ===== 画像処理 =====
+
+def resize_image(img_bytes, max_w=1024, max_h=768):
+    """画像をリサイズ・圧縮してJPEGバイト列で返す"""
+    try:
+        img = Image.open(BytesIO(img_bytes))
+        if img.mode in ('RGBA', 'LA', 'P'):
+            img = img.convert('RGB')
+        img.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
+        out = BytesIO()
+        img.save(out, format='JPEG', quality=85)
+        return out.getvalue()
+    except:
+        return img_bytes
 
 # ===== Excel生成 =====
 
@@ -194,7 +223,7 @@ def generate_excel(data: dict) -> str:
     wb.save(out_path)
     return out_path
 
-# ===== ルーティング =====
+# ===== API: 記録 =====
 
 @app.route('/')
 def index():
@@ -269,6 +298,86 @@ def delete_record(record_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ===== API: 写真 =====
+
+@app.route('/api/photos/<record_id>', methods=['GET'])
+def get_photos(record_id):
+    """記録の写真一覧を取得"""
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            'SELECT id, filename, caption, created_at FROM photos WHERE record_id=? ORDER BY created_at',
+            (record_id,)).fetchall()
+        conn.close()
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/photos/<record_id>', methods=['POST'])
+def upload_photo(record_id):
+    """写真をアップロード"""
+    try:
+        body = request.get_json(force=True)
+        img_b64  = body.get('image', '')   # base64 data URL
+        caption  = body.get('caption', '')
+        if not img_b64:
+            return jsonify({'error': 'No image'}), 400
+
+        # base64デコード
+        if ',' in img_b64:
+            img_b64 = img_b64.split(',', 1)[1]
+        img_bytes = base64.b64decode(img_b64)
+        img_bytes = resize_image(img_bytes)
+
+        pid = str(uuid.uuid4())
+        filename = f'{pid}.jpg'
+        filepath = os.path.join(IMG_DIR, filename)
+        with open(filepath, 'wb') as f:
+            f.write(img_bytes)
+
+        now = datetime.now().isoformat()
+        conn = get_db()
+        conn.execute(
+            'INSERT INTO photos (id, record_id, filename, caption, created_at) VALUES (?,?,?,?,?)',
+            (pid, record_id, filename, caption, now))
+        conn.commit()
+        conn.close()
+        return jsonify({'id': pid, 'caption': caption, 'created_at': now}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/photos/item/<photo_id>', methods=['DELETE'])
+def delete_photo(photo_id):
+    """写真を削除"""
+    try:
+        conn = get_db()
+        row = conn.execute('SELECT filename FROM photos WHERE id=?', (photo_id,)).fetchone()
+        if row:
+            filepath = os.path.join(IMG_DIR, row['filename'])
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            conn.execute('DELETE FROM photos WHERE id=?', (photo_id,))
+            conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/photos/file/<photo_id>', methods=['GET'])
+def get_photo_file(photo_id):
+    """写真ファイルを取得"""
+    try:
+        conn = get_db()
+        row = conn.execute('SELECT filename FROM photos WHERE id=?', (photo_id,)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        return send_file(os.path.join(IMG_DIR, row['filename']), mimetype='image/jpeg')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===== Excel出力 =====
 
 @app.route('/generate', methods=['POST'])
 def generate():
