@@ -415,22 +415,62 @@ function hideModal(){document.getElementById('modal').classList.remove('open');}
 function saveRecord(){
   var n=document.getElementById('save-name').value.trim();
   if(!n){toast('保存名を入力してください');return;}
-  var recs=getRecs();var now=new Date();
-  var ts=now.getFullYear()+'/'+(('0'+(now.getMonth()+1)).slice(-2))+'/'+(('0'+now.getDate()).slice(-2))+' '+(('0'+now.getHours()).slice(-2))+':'+(('0'+now.getMinutes()).slice(-2));
-  var rid=Date.now().toString();
-  recs.unshift({id:rid,name:n,ts:ts,data:collect()});
-  saveRecs(recs);currentRecordId=rid;setCurrentRecord(rid);hideModal();toast('「'+n+'」を保存しました');
+  var btn=document.getElementById('btn-ms');
+  btn.disabled=true;btn.textContent='保存中...';
+  fetch('/api/records',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:n,data:collect()})
+  }).then(function(r){return r.json();})
+  .then(function(rec){
+    currentRecordId=rec.id;
+    setCurrentRecord(rec.id);
+    hideModal();
+    toast('「'+n+'」を保存しました');
+    // ローカルにも保存（一覧表示用）
+    var recs=getRecs();
+    var now=new Date();
+    var ts=now.getFullYear()+'/'+(('0'+(now.getMonth()+1)).slice(-2))+'/'+(('0'+now.getDate()).slice(-2))+' '+(('0'+now.getHours()).slice(-2))+':'+(('0'+now.getMinutes()).slice(-2));
+    recs.unshift({id:rec.id,name:n,ts:ts,data:collect()});
+    saveRecs(recs);
+  }).catch(function(e){toast('保存エラー: '+e.message);})
+  .finally?undefined:(function(){});
+  setTimeout(function(){btn.disabled=false;btn.textContent='保存';},3000);
 }
 function renderList(){
   var b=document.getElementById('record-list-body');if(!b)return;
-  var recs=getRecs();
+  b.innerHTML='<p style="color:var(--g600);font-size:13px;text-align:center;padding:10px;">読み込み中...</p>';
+  // サーバーから取得
+  fetch('/api/records')
+  .then(function(r){return r.json();})
+  .then(function(serverRecs){
+    // ローカルにサーバー記録をマージ保存
+    var localRecs=getRecs();
+    var localIds=localRecs.map(function(r){return r.id;});
+    serverRecs.forEach(function(sr){
+      if(localIds.indexOf(sr.id)<0){
+        localRecs.unshift({id:sr.id,name:sr.name,ts:sr.created_at?sr.created_at.slice(0,16).replace('T',' '):''});
+      }
+    });
+    saveRecs(localRecs);
+    // サーバー記録を優先表示
+    var display=serverRecs.length>0?serverRecs:localRecs;
+    buildList(b,display);
+  }).catch(function(){
+    // サーバーに繋がらなければローカル表示
+    buildList(b,getRecs());
+  });
+}
+
+function buildList(b,recs){
   if(recs.length===0){b.innerHTML='<p style="color:var(--g600);font-size:13px;text-align:center;padding:20px;">保存された記録はありません</p>';return;}
   var h='';
   for(var i=0;i<recs.length;i++){
     var r=recs[i];
+    var ts=r.ts||r.created_at||'';if(ts.length>16)ts=ts.slice(0,16).replace('T',' ');
     h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1.5px solid var(--g200);border-radius:10px;margin-bottom:10px;">';
     h+='<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;margin-bottom:3px;">'+r.name+'</div>';
-    h+='<div style="font-size:11px;color:var(--g600);">保存日時: '+r.ts+'</div></div>';
+    h+='<div style="font-size:11px;color:var(--g600);">保存日時: '+ts+'</div></div>';
     h+='<div style="display:flex;gap:8px;margin-left:10px;">';
     h+='<button class="nbtn nnext" style="padding:7px 14px;font-size:12px;" data-load="'+r.id+'">読込</button>';
     h+='<button class="nbtn nback" style="padding:7px 10px;font-size:12px;color:var(--red);" data-del="'+r.id+'">削除</button>';
@@ -440,10 +480,22 @@ function renderList(){
   b.innerHTML=h;
 }
 function loadRec(id){
-  var recs=getRecs();
-  for(var i=0;i<recs.length;i++){if(recs[i].id===id){clearFm();restore(recs[i].data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+recs[i].name+'」を読み込みました');return;}}
+  // まずサーバーから取得を試みる
+  fetch('/api/records/'+id)
+  .then(function(r){return r.json();})
+  .then(function(rec){
+    clearFm();restore(rec.data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+rec.name+'」を読み込みました');
+  }).catch(function(){
+    // サーバーになければローカルから
+    var recs=getRecs();
+    for(var i=0;i<recs.length;i++){if(recs[i].id===id){clearFm();restore(recs[i].data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+recs[i].name+'」を読み込みました');return;}}
+  });
 }
-function delRec(id){saveRecs(getRecs().filter(function(r){return r.id!==id;}));renderList();toast('削除しました');}
+function delRec(id){
+  fetch('/api/records/'+id,{method:'DELETE'}).catch(function(){});
+  saveRecs(getRecs().filter(function(r){return r.id!==id;}));
+  renderList();toast('削除しました');
+}
 
 function clearFm(){
   var fs=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式'];
