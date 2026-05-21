@@ -240,6 +240,7 @@ def get_records():
         conn.close()
         return jsonify(records)
     except Exception as e:
+        print(f'[ERROR] get_records: {e}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/records/<record_id>', methods=['GET'])
@@ -252,11 +253,13 @@ def get_record(record_id):
         row = c.fetchone()
         conn.close()
         if not row:
+            print(f'[DEBUG] Record not found: {record_id}')
             return jsonify({'error': 'Record not found'}), 404
         record = dict(row)
         record['data'] = json.loads(record['data'])
         return jsonify(record)
     except Exception as e:
+        print(f'[ERROR] get_record: {e}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/records', methods=['POST'])
@@ -282,8 +285,10 @@ def save_record():
         conn.commit()
         conn.close()
         
+        print(f'[INFO] Record saved: {record_id}')
         return jsonify({'id': record_id, 'name': name, 'created_at': created_at}), 201
     except Exception as e:
+        print(f'[ERROR] save_record: {e}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/records/<record_id>', methods=['DELETE'])
@@ -297,6 +302,7 @@ def delete_record(record_id):
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        print(f'[ERROR] delete_record: {e}')
         return jsonify({'error': str(e)}), 500
 
 # ===== API: 写真 =====
@@ -307,11 +313,13 @@ def get_photos(record_id):
     try:
         conn = get_db()
         rows = conn.execute(
-            'SELECT id, filename, caption, created_at FROM photos WHERE record_id=? ORDER BY created_at',
+            'SELECT id, filename, caption, created_at FROM photos WHERE record_id=? ORDER BY created_at DESC',
             (record_id,)).fetchall()
         conn.close()
+        print(f'[INFO] Photos retrieved for {record_id}: {len(rows)} photos')
         return jsonify([dict(r) for r in rows])
     except Exception as e:
+        print(f'[ERROR] get_photos: {e}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/photos/<record_id>', methods=['POST'])
@@ -319,12 +327,11 @@ def upload_photo(record_id):
     """写真をアップロード"""
     try:
         body = request.get_json(force=True)
-        img_b64  = body.get('image', '')   # base64 data URL
+        img_b64  = body.get('image', '')
         caption  = body.get('caption', '')
         if not img_b64:
             return jsonify({'error': 'No image'}), 400
 
-        # base64デコード
         if ',' in img_b64:
             img_b64 = img_b64.split(',', 1)[1]
         img_bytes = base64.b64decode(img_b64)
@@ -343,8 +350,10 @@ def upload_photo(record_id):
             (pid, record_id, filename, caption, now))
         conn.commit()
         conn.close()
+        print(f'[INFO] Photo uploaded: {pid} for record {record_id}')
         return jsonify({'id': pid, 'caption': caption, 'created_at': now}), 201
     except Exception as e:
+        print(f'[ERROR] upload_photo: {e}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/photos/item/<photo_id>', methods=['DELETE'])
@@ -362,6 +371,7 @@ def delete_photo(photo_id):
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        print(f'[ERROR] delete_photo: {e}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/photos/file/<photo_id>', methods=['GET'])
@@ -372,9 +382,15 @@ def get_photo_file(photo_id):
         row = conn.execute('SELECT filename FROM photos WHERE id=?', (photo_id,)).fetchone()
         conn.close()
         if not row:
+            print(f'[DEBUG] Photo file not found: {photo_id}')
             return jsonify({'error': 'Not found'}), 404
-        return send_file(os.path.join(IMG_DIR, row['filename']), mimetype='image/jpeg')
+        filepath = os.path.join(IMG_DIR, row['filename'])
+        if not os.path.exists(filepath):
+            print(f'[ERROR] Photo file missing: {filepath}')
+            return jsonify({'error': 'File not found'}), 404
+        return send_file(filepath, mimetype='image/jpeg')
     except Exception as e:
+        print(f'[ERROR] get_photo_file: {e}')
         return jsonify({'error': str(e)}), 500
 
 # ===== Excel出力 =====
@@ -391,6 +407,7 @@ def generate():
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
     except Exception as e:
+        print(f'[ERROR] generate: {e}')
         return jsonify({'error': str(e)}), 500
 
 # ===== 起動 =====
