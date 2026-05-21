@@ -1,21 +1,30 @@
 import sys, os, json, shutil, threading, webbrowser, sqlite3, uuid
+import io, base64                                         # 【追加】写真API用
 from datetime import datetime
 from flask import Flask, request, send_file, send_from_directory, jsonify
 from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
+from PIL import Image as PILImage                         # 【追加】写真API用
+from openpyxl.drawing.image import Image as XLImage       # 【追加】写真API用
 
 BASE = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
 app = Flask(__name__, static_folder=os.path.join(BASE, 'static'))
 
-# ===== DB =====
+# ===== DB & Photos =====
 DB_PATH = os.path.join(os.path.expanduser('~'), '.usx_app', 'records.db')
+IMG_DIR = os.path.join(os.path.expanduser('~'), '.usx_app', 'photos') # 【追加】写真保存先
+
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+os.makedirs(IMG_DIR, exist_ok=True)                                   # 【追加】写真保存先の作成
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute('''CREATE TABLE IF NOT EXISTS records (
         id TEXT PRIMARY KEY, name TEXT NOT NULL,
         created_at TEXT NOT NULL, data TEXT NOT NULL)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS photos (
+        id TEXT PRIMARY KEY, record_id TEXT NOT NULL,
+        filename TEXT NOT NULL, caption TEXT, created_at TEXT NOT NULL)''') # 写真用テーブルも明示的に作成されるように追記推奨
     conn.commit(); conn.close()
 
 init_db()
@@ -260,26 +269,6 @@ def generate():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ===== 起動 =====
-def open_browser(port):
-    import time; time.sleep(1.2)
-    webbrowser.open(f'http://localhost:{port}')
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5199))
-    is_render = 'RENDER' in os.environ
-    print('='*50)
-    print(' USX 運転記録表サーバー 起動中...')
-    print('='*50)
-    if not is_render:
-        import socket
-        try: ip = socket.gethostbyname(socket.gethostname())
-        except: ip = '127.0.0.1'
-        print(f' PC用URL:     http://localhost:{port}')
-        print(f' スマホ用URL: http://{ip}:{port}')
-        threading.Thread(target=open_browser, args=(port,), daemon=True).start()
-    app.run(host='0.0.0.0', port=port, debug=False)
-
 # ===== 写真API =====
 
 def resize_image(img_bytes, max_w=1024, max_h=768):
@@ -484,3 +473,25 @@ def generate_with_photos():
                          mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ===== 起動 =====
+# 【重要】 `app.run()` を含むこのブロックは必ずファイルの「一番最後」に配置します。
+def open_browser(port):
+    import time; time.sleep(1.2)
+    webbrowser.open(f'http://localhost:{port}')
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5199))
+    is_render = 'RENDER' in os.environ
+    print('='*50)
+    print(' USX 運転記録表サーバー 起動中...')
+    print('='*50)
+    if not is_render:
+        import socket
+        try: ip = socket.gethostbyname(socket.gethostname())
+        except: ip = '127.0.0.1'
+        print(f' PC用URL:     http://localhost:{port}')
+        print(f' スマホ用URL: http://{ip}:{port}')
+        threading.Thread(target=open_browser, args=(port,), daemon=True).start()
+    app.run(host='0.0.0.0', port=port, debug=False)
