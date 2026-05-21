@@ -282,13 +282,29 @@ if __name__ == '__main__':
 
 # ===== 写真API =====
 
-def resize_image(img_bytes, max_w=800, max_h=600):
-    """画像をリサイズしてJPEGバイト列で返す"""
+def resize_image(img_bytes, max_w=1024, max_h=768):
+    """画像をリサイズ・圧縮してJPEGバイト列で返す"""
     img = PILImage.open(io.BytesIO(img_bytes))
     img = img.convert('RGB')
+    # EXIF回転を補正
+    try:
+        import PIL.ExifTags
+        exif = img._getexif()
+        if exif:
+            for tag, val in exif.items():
+                if PIL.ExifTags.TAGS.get(tag) == 'Orientation':
+                    if val == 3:   img = img.rotate(180, expand=True)
+                    elif val == 6: img = img.rotate(270, expand=True)
+                    elif val == 8: img = img.rotate(90,  expand=True)
+    except Exception:
+        pass
     img.thumbnail((max_w, max_h), PILImage.LANCZOS)
-    buf = io.BytesIO()
-    img.save(buf, format='JPEG', quality=85)
+    # まず quality=60 で試して200KB以下なら採用、超えたらさらに圧縮
+    for quality in [60, 40, 25]:
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=quality, optimize=True)
+        if buf.tell() <= 200 * 1024:
+            return buf.getvalue()
     return buf.getvalue()
 
 @app.route('/api/photos/<record_id>', methods=['GET'])
