@@ -74,7 +74,7 @@ def resize_image(img_bytes):
                     elif val == 8: img = img.rotate(90,  expand=True)
     except Exception:
         pass
-    img.thumbnail((1024, 768), PILImage.LANCZOS)
+    img.thumbnail((501, 408), PILImage.LANCZOS)
     for quality in [60, 40, 25]:
         buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=quality, optimize=True)
@@ -222,7 +222,7 @@ def make_excel(data, photos=None):
                     try:
                         img_bytes=bytes(photo['file_data']) if not isinstance(photo['file_data'],bytes) else photo['file_data']
                         xl_img=XLImage(io.BytesIO(img_bytes))
-                        xl_img.width=380; xl_img.height=285
+                        xl_img.width=501; xl_img.height=408
                         ws_p.add_image(xl_img,f'B{pr[0]}')
                     except Exception as ex:
                         print('img error:',ex)
