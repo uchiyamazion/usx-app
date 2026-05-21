@@ -595,6 +595,27 @@ function renderPhotos(photos) {
   list.innerHTML = h;
 }
 
+function compressImage(file, callback) {
+  // Canvas でリサイズ・圧縮（最大1024x768, JPEG quality=0.6）
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var maxW = 1024, maxH = 768;
+      var w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.6));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function uploadPhoto() {
   if (!currentRecordId) { toast('先に記録を保存してください'); return; }
   var input = document.getElementById('photo-input');
@@ -602,18 +623,17 @@ function uploadPhoto() {
   if (!input.files || input.files.length === 0) { toast('写真を選択してください'); return; }
 
   var btn = document.getElementById('btn-upload-photo');
-  btn.disabled = true; btn.textContent = '⏳ アップロード中...';
-
+  btn.disabled = true;
   var files = Array.from(input.files);
   var done = 0;
 
-  files.forEach(function(file) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
+  function uploadOne(file, idx) {
+    btn.textContent = '⏳ ' + (idx+1) + '/' + files.length + ' 処理中...';
+    compressImage(file, function(dataUrl) {
       fetch('/api/photos/' + currentRecordId, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({image: e.target.result, caption: caption})
+        body: JSON.stringify({image: dataUrl, caption: caption})
       }).then(function(r){ return r.json(); })
       .then(function(){
         done++;
@@ -623,15 +643,18 @@ function uploadPhoto() {
           document.getElementById('photo-caption').value = '';
           loadPhotos();
           toast(files.length + '枚の写真を追加しました');
+        } else {
+          uploadOne(files[done], done);
         }
       }).catch(function(e){
         done++;
         toast('エラー: ' + e.message);
-        if (done === files.length) { btn.disabled = false; btn.textContent = '📷 写真を追加'; }
+        btn.disabled = false; btn.textContent = '📷 写真を追加';
       });
-    };
-    reader.readAsDataURL(file);
-  });
+    });
+  }
+
+  uploadOne(files[0], 0);
 }
 
 function deletePhoto(id) {
