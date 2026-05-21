@@ -85,6 +85,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <button class="tbtn" data-tab="precheck">試運転点検</button>
   <button class="tbtn" data-tab="export">Excel出力</button>
   <button class="tbtn" data-tab="list">記録一覧</button>
+  <button class="tbtn" data-tab="photos">📷 写真</button>
 </div>
 
 <div class="pg" id="pg-header">
@@ -177,7 +178,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div class="exbox">
       <h3>運転記録表を Excel に出力</h3>
       <p>ボタンを押すだけで書式付きExcelがダウンロードされます。</p>
-      <button class="gbtn" id="btn-excel">Excel出力</button>
+      <button class="gbtn" id="btn-excel" style="margin:4px;">Excel出力</button>
+      <button class="gbtn" id="btn-excel-photo" style="margin:4px;background:#7c3aed;">📷 写真付きで出力</button>
     </div>
     <div><div style="font-size:13px;font-weight:700;color:var(--g700);margin-bottom:8px;">入力データプレビュー</div>
     <pre id="json-preview" style="background:var(--g50);border:1px solid var(--g200);border-radius:8px;padding:12px;font-size:11px;overflow:auto;max-height:360px;color:var(--g700);font-family:monospace;"></pre>
@@ -202,6 +204,33 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     </div>
   </div>
 </div>
+<!-- 写真 -->
+<div class="pg" id="pg-photos">
+  <div class="card">
+    <div class="ch">📷 現場写真</div>
+    <div class="cb">
+      <div id="photo-record-info" style="margin-bottom:12px;padding:10px;background:var(--g50);border-radius:8px;font-size:13px;color:var(--g600);">
+        先に「記録一覧」から記録を読み込むか、「保存」してから写真を追加してください。
+      </div>
+      <div id="photo-upload-area" style="display:none;">
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--g600);margin-bottom:6px;">写真を選択（複数可）</label>
+          <input type="file" id="photo-input" accept="image/*" multiple style="width:100%;padding:10px;border:1.5px dashed var(--g300);border-radius:9px;background:var(--g50);font-size:14px;">
+          <div class="fl" style="margin-top:8px;">
+            <label>キャプション（説明）</label>
+            <input type="text" id="photo-caption" placeholder="例: 1号機 外観">
+          </div>
+          <button class="nbtn nnext" id="btn-upload-photo" style="margin-top:10px;width:100%;">📷 写真を追加</button>
+        </div>
+        <div id="photo-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="navrow">
+    <button class="nbtn nnext" data-tab="export">Excel出力へ →</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -241,7 +270,7 @@ var GL={基本:'基本運転データ',冷温水:'冷(温)水系統',電気:'電
 var CR=['A','B','C','D'];
 var CG={'圧縮機関係':['異常音','異常振動','圧力不良','オイル量','異常過熱'],'凝縮器関係':['汚れ','流量不足','Yスト詰り','風量不足'],'蒸発器関係':['汚れ','流量不足','Yスト詰り','風量不足'],'送風機関係':['異常音','異常振動','ショートサイクル'],'冷媒配管系統部品関係':['ストレーナ','四方弁','電磁弁','膨張弁'],'電装品関係':['センサー','リレー','トランス','制御基板','通信不具合'],'補機関係':['ポンプ','圧力計','アキュムレータ'],'その他':['その他']};
 var PC=['電装品結線状態確認','通信線アドレス設定','熱源機外観点検','内蔵ポンプ動作確認','水配管フラッシング','12時間前通電','冷媒漏洩点検','インターロック動作確認'];
-var TABS=['header','units','checks','precheck','export','list'];
+var TABS=['header','units','checks','precheck','export','list','photos'];
 var pst={},pre={},uc=1,cu=1;
 
 function showTab(name){
@@ -388,8 +417,9 @@ function saveRecord(){
   if(!n){toast('保存名を入力してください');return;}
   var recs=getRecs();var now=new Date();
   var ts=now.getFullYear()+'/'+(('0'+(now.getMonth()+1)).slice(-2))+'/'+(('0'+now.getDate()).slice(-2))+' '+(('0'+now.getHours()).slice(-2))+':'+(('0'+now.getMinutes()).slice(-2));
-  recs.unshift({id:Date.now().toString(),name:n,ts:ts,data:collect()});
-  saveRecs(recs);hideModal();toast('「'+n+'」を保存しました');
+  var rid=Date.now().toString();
+  recs.unshift({id:rid,name:n,ts:ts,data:collect()});
+  saveRecs(recs);currentRecordId=rid;setCurrentRecord(rid);hideModal();toast('「'+n+'」を保存しました');
 }
 function renderList(){
   var b=document.getElementById('record-list-body');if(!b)return;
@@ -411,7 +441,7 @@ function renderList(){
 }
 function loadRec(id){
   var recs=getRecs();
-  for(var i=0;i<recs.length;i++){if(recs[i].id===id){clearFm();restore(recs[i].data);showTab('header');toast('「'+recs[i].name+'」を読み込みました');return;}}
+  for(var i=0;i<recs.length;i++){if(recs[i].id===id){clearFm();restore(recs[i].data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+recs[i].name+'」を読み込みました');return;}}
 }
 function delRec(id){saveRecs(getRecs().filter(function(r){return r.id!==id;}));renderList();toast('削除しました');}
 
@@ -486,6 +516,20 @@ document.addEventListener('click',function(e){
   var dd=t.getAttribute('data-del');if(dd){delRec(dd);return;}
   // 新規
   if(t.id==='btn-new'){clearFm();showTab('header');toast('新規入力を開始します');return;}
+  // 写真削除
+  var pdel = t.getAttribute('data-photo-del');
+  if (pdel) { deletePhoto(pdel); return; }
+  // 写真アップロード
+  if (t.id === 'btn-upload-photo') { uploadPhoto(); return; }
+  // 写真付きExcel
+  if (t.id === 'btn-excel-photo') { genExcelWithPhotos(); return; }
+  // 写真タブ表示時
+  if (t.getAttribute && t.getAttribute('data-tab') === 'photos') {
+    showTab('photos');
+    if (currentRecordId) loadPhotos();
+    return;
+  }
+
   // ピル（ラジオ）
   if(t.classList&&t.classList.contains('pill')&&!t.classList.contains('ck')){
     var g=t.getAttribute('data-group');var v=t.getAttribute('data-val');if(!g||!v)return;
@@ -504,6 +548,117 @@ document.addEventListener('click',function(e){
     return;
   }
 });
+
+// ===== 写真機能 =====
+var currentRecordId = null;
+
+function setCurrentRecord(id) {
+  currentRecordId = id;
+  var info = document.getElementById('photo-record-info');
+  var area = document.getElementById('photo-upload-area');
+  if (id) {
+    if (info) info.style.display = 'none';
+    if (area) area.style.display = 'block';
+    loadPhotos();
+  } else {
+    if (info) info.style.display = 'block';
+    if (area) area.style.display = 'none';
+  }
+}
+
+function loadPhotos() {
+  if (!currentRecordId) return;
+  fetch('/api/photos/' + currentRecordId)
+    .then(function(r){ return r.json(); })
+    .then(function(photos){ renderPhotos(photos); })
+    .catch(function(e){ console.error('loadPhotos:', e); });
+}
+
+function renderPhotos(photos) {
+  var list = document.getElementById('photo-list');
+  if (!list) return;
+  if (photos.length === 0) {
+    list.innerHTML = '<p style="color:var(--g600);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">写真はまだありません</p>';
+    return;
+  }
+  var h = '';
+  for (var i = 0; i < photos.length; i++) {
+    var p = photos[i];
+    h += '<div style="border:1px solid var(--g200);border-radius:10px;overflow:hidden;">';
+    h += '<img src="/api/photos/file/' + p.id + '" style="width:100%;height:140px;object-fit:cover;display:block;">';
+    h += '<div style="padding:8px;">';
+    h += '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">' + (p.caption || '（説明なし）') + '</div>';
+    h += '<div style="font-size:11px;color:var(--g600);margin-bottom:6px;">' + (p.created_at || '').slice(0,10) + '</div>';
+    h += '<button class="nbtn nback" style="padding:4px 10px;font-size:11px;color:var(--red);" data-photo-del="' + p.id + '">削除</button>';
+    h += '</div></div>';
+  }
+  list.innerHTML = h;
+}
+
+function uploadPhoto() {
+  if (!currentRecordId) { toast('先に記録を保存してください'); return; }
+  var input = document.getElementById('photo-input');
+  var caption = document.getElementById('photo-caption').value.trim();
+  if (!input.files || input.files.length === 0) { toast('写真を選択してください'); return; }
+
+  var btn = document.getElementById('btn-upload-photo');
+  btn.disabled = true; btn.textContent = '⏳ アップロード中...';
+
+  var files = Array.from(input.files);
+  var done = 0;
+
+  files.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      fetch('/api/photos/' + currentRecordId, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({image: e.target.result, caption: caption})
+      }).then(function(r){ return r.json(); })
+      .then(function(){
+        done++;
+        if (done === files.length) {
+          btn.disabled = false; btn.textContent = '📷 写真を追加';
+          input.value = '';
+          document.getElementById('photo-caption').value = '';
+          loadPhotos();
+          toast(files.length + '枚の写真を追加しました');
+        }
+      }).catch(function(e){
+        done++;
+        toast('エラー: ' + e.message);
+        if (done === files.length) { btn.disabled = false; btn.textContent = '📷 写真を追加'; }
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function deletePhoto(id) {
+  fetch('/api/photos/item/' + id, {method:'DELETE'})
+    .then(function(){ loadPhotos(); toast('写真を削除しました'); })
+    .catch(function(e){ toast('エラー: ' + e.message); });
+}
+
+function genExcelWithPhotos() {
+  var btn = document.getElementById('btn-excel-photo');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 生成中...'; }
+  fetch('/generate_with_photos', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({data: collect(), record_id: currentRecordId || ''})
+  }).then(function(r){
+    if (!r.ok) return r.json().then(function(e){ throw new Error(e.error); });
+    return r.blob();
+  }).then(function(blob){
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '運転記録表_' + new Date().toISOString().slice(0,10) + '.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast('Excelをダウンロードしました');
+  }).catch(function(e){ toast('エラー: ' + e.message); });
+  setTimeout(function(){ if(btn){btn.disabled=false;btn.textContent='📷 写真付きで出力';} }, 5000);
+}
 
 window.addEventListener('load',function(){
   for(var i=0;i<TABS.length;i++){var pg=document.getElementById('pg-'+TABS[i]);if(pg)pg.style.display=(TABS[i]==='header')?'block':'none';}
