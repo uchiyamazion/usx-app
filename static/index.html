@@ -578,7 +578,12 @@ document.addEventListener('click',function(e){
   // 写真タブ表示時
   if (t.getAttribute && t.getAttribute('data-tab') === 'photos') {
     showTab('photos');
-    if (currentRecordId) loadPhotos();
+    if (currentRecordId) {
+      loadPhotos();
+    } else {
+      // 未保存なら自動で保存してから写真タブを表示
+      autoSaveAndShowPhotos();
+    }
     return;
   }
 
@@ -603,6 +608,34 @@ document.addEventListener('click',function(e){
 
 // ===== 写真機能 =====
 var currentRecordId = null;
+
+function autoSaveAndShowPhotos() {
+  // 現場名を取得（なければ日時で自動命名）
+  var name = document.getElementById('f-現場名') ? document.getElementById('f-現場名').value.trim() : '';
+  if (!name) {
+    var now = new Date();
+    name = now.getFullYear() + '/' + ('0'+(now.getMonth()+1)).slice(-2) + '/' + ('0'+now.getDate()).slice(-2) + ' 現場';
+  }
+  toast('写真用に自動保存中...');
+  fetch('/api/records', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: name, data: collect()})
+  }).then(function(r){ return r.json(); })
+  .then(function(rec) {
+    currentRecordId = rec.id;
+    setCurrentRecord(rec.id);
+    // ローカルにも保存
+    var recs = getRecs();
+    var now = new Date();
+    var ts = now.getFullYear()+'/'+(('0'+(now.getMonth()+1)).slice(-2))+'/'+(('0'+now.getDate()).slice(-2))+' '+(('0'+now.getHours()).slice(-2))+':'+(('0'+now.getMinutes()).slice(-2));
+    recs.unshift({id: rec.id, name: name, ts: ts, data: collect()});
+    saveRecs(recs);
+    toast('自動保存しました。写真を追加できます。');
+  }).catch(function(e) {
+    toast('保存エラー: ' + e.message);
+  });
+}
 
 function setCurrentRecord(id) {
   currentRecordId = id;
@@ -653,7 +686,7 @@ function compressImage(file, callback) {
   reader.onload = function(e) {
     var img = new Image();
     img.onload = function() {
-      var maxW = 501, maxH = 408;
+      var maxW = 559, maxH = 391;
       var w = img.width, h = img.height;
       if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
       if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
