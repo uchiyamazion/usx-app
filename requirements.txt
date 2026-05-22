@@ -1,0 +1,4 @@
+flask
+openpyxl
+Pillow
+psycopg2-binary
