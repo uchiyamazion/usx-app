@@ -243,7 +243,7 @@ def make_excel(data, photos=None):
                         anchor=TwoCellAnchor()
                         anchor._from=AnchorMarker(col=1, colOff=0, row=r0, rowOff=0)
                         anchor.to=AnchorMarker(col=5, colOff=0, row=r1, rowOff=0)
-                        anchor.editAs='oneCell'
+                        anchor.editAs='twoCell'
                         xl_img.anchor=anchor
                         ws_p.add_image(xl_img)
                     except Exception as ex:
