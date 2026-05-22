@@ -1,5 +1,17 @@
-import sys, os, json, shutil, threading, webbrowser, uuid, base64
+import sys, os, json, shutil, threading, webbrowser, uuid, base64, subprocess
 from datetime import datetime
+
+# 必要なライブラリを自動インストール
+def ensure_packages():
+    pkgs = ['flask', 'openpyxl', 'Pillow', 'psycopg2-binary']
+    for pkg in pkgs:
+        try:
+            __import__(pkg.split('-')[0].lower().replace('pillow','PIL').replace('psycopg2_binary','psycopg2'))
+        except ImportError:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg, '--quiet'])
+
+ensure_packages()
+
 from flask import Flask, request, send_file, send_from_directory, jsonify
 from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
@@ -74,7 +86,7 @@ def resize_image(img_bytes):
                     elif val == 8: img = img.rotate(90,  expand=True)
     except Exception:
         pass
-    img.thumbnail((501, 408), PILImage.LANCZOS)
+    img.thumbnail((559, 391), PILImage.LANCZOS)
     for quality in [60, 40, 25]:
         buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=quality, optimize=True)
@@ -220,12 +232,28 @@ def make_excel(data, photos=None):
                 pr=ppr_sheet[li]; ir=info_rows[li]
                 if photo.get('file_data'):
                     try:
+                        from openpyxl.drawing.spreadsheet_drawing import TwoCellAnchor, AnchorMarker
                         img_bytes=bytes(photo['file_data']) if not isinstance(photo['file_data'],bytes) else photo['file_data']
                         xl_img=XLImage(io.BytesIO(img_bytes))
-                        xl_img.width=501; xl_img.height=408
-                        ws_p.add_image(xl_img,f'B{pr[0]}')
+                        # TwoCellAnchorでセルにぴったり配置
+                        # 写真エリア: B{pr[0]}:F{pr[1]}
+                        # openpyxlの列インデックスは0始まり: B=1,F=5
+                        # 行インデックスは0始まり: 行3=2, 行23=22
+                        r0=pr[0]-1; r1=pr[1]-1
+                        anchor=TwoCellAnchor()
+                        anchor._from=AnchorMarker(col=1, colOff=0, row=r0, rowOff=0)
+                        anchor.to=AnchorMarker(col=5, colOff=0, row=r1, rowOff=0)
+                        anchor.editAs='oneCell'
+                        xl_img.anchor=anchor
+                        ws_p.add_image(xl_img)
                     except Exception as ex:
                         print('img error:',ex)
+                        # フォールバック: 固定サイズで貼り付け
+                        try:
+                            xl_img2=XLImage(io.BytesIO(img_bytes))
+                            xl_img2.width=559; xl_img2.height=391
+                            ws_p.add_image(xl_img2,f'B{pr[0]}')
+                        except Exception: pass
                 dt=photo.get('created_at','')[:10]
                 cap=photo.get('caption','')
                 ws_p.cell(ir['date'],8,dt)
