@@ -282,6 +282,7 @@ function showTab(name){
   for(var i=0;i<ts.length;i++){ts[i].classList[ts[i].getAttribute('data-tab')===name?'add':'remove']('on');}
   if(name==='export') updPrev();
   if(name==='list') renderList();
+  if(name==='photos'){ if(currentRecordId){ loadPhotos(); } else { autoSaveAndShowPhotos(); } }
   window.scrollTo(0,0);
 }
 
