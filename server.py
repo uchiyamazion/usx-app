@@ -239,10 +239,10 @@ def make_excel(data, photos=None):
                         # 写真エリア: B{pr[0]}:F{pr[1]}
                         # openpyxlの列インデックスは0始まり: B=1,F=5
                         # 行インデックスは0始まり: 行3=2, 行23=22
-                        r0=pr[0]-1; r1=pr[1]-1
+                        r0=pr[0]-1; r1=pr[1]
                         anchor=TwoCellAnchor()
                         anchor._from=AnchorMarker(col=1, colOff=0, row=r0, rowOff=0)
-                        anchor.to=AnchorMarker(col=5, colOff=0, row=r1, rowOff=0)
+                        anchor.to=AnchorMarker(col=7, colOff=0, row=r1, rowOff=0)
                         anchor.editAs='twoCell'
                         xl_img.anchor=anchor
                         ws_p.add_image(xl_img)
