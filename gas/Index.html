@@ -234,15 +234,18 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 <div class="toast" id="toast"></div>
 
 <script>
+/* デプロイURL（doGet側でテンプレート変数として埋め込まれる）。
+ * このページはgoogleusercontent.comのiframe内で動くため、
+ * fetch('')相対パスでは自分自身を指せない。必ずこの絶対URLを使う。 */
+var WEBAPP_URL = '<?= webAppUrl ?>';
+
 /* ===== GAS版APIクライアント =====
  * Flask版では /api/records のようなパス分岐でAPIを呼んでいたが、
  * GAS Webアプリは単一URLしか持てないため、同じURL(doPost)に
  * {action, payload} を送る形に統一する。
- * ページ自体もこのWebアプリのURLから配信されているので、
- * 相対パスのfetch('', ...)で自分自身(doPost)を呼び出せる。
  */
 function apiCall(action, payload) {
-  return fetch('', {
+  return fetch(WEBAPP_URL, {
     method: 'POST',
     headers: {'Content-Type': 'text/plain;charset=utf-8'}, // CORSプリフライト回避のためtext/plainにする
     body: JSON.stringify({action: action, payload: payload || {}})

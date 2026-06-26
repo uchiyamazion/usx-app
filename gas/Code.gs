@@ -15,7 +15,12 @@
  */
 
 function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  var template = HtmlService.createTemplateFromFile('Index');
+  // Index.htmlは実際にはgoogleusercontent.comのiframe内で動くため、
+  // fetch('')のような相対パスでは自分自身(script.google.com/.../exec)を
+  // 指せない。デプロイURLを明示的に埋め込み、フロントのapiCall()から使う。
+  template.webAppUrl = ScriptApp.getService().getUrl();
+  return template.evaluate()
     .setTitle('USX 単体運転記録表')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, user-scalable=no');
 }
