@@ -10,10 +10,6 @@
   ],
   "webapp": {
     "executeAs": "USER_DEPLOYING",
-    "access": "ANYONE"
-  },
-  "webapp": {
-    "executeAs": "USER_ACCESSING",
     "access": "ANYONE_ANONYMOUS"
   }
 }
