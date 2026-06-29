@@ -97,7 +97,7 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
   safeSet(sheet, 'E8', data['設置年月日']);
   safeSet(sheet, 'I8', data['冷媒種類']);
   safeSet(sheet, 'T70', data['作成者']);
-  safeSet(sheet, 'A72', data['備考']);
+  safeSet(sheet, 'B71', data['備考']);
 
   const workTypeCells = { '試運転': 'D4', '定期点検': 'F4', '簡易点検': 'H4', '修理': 'J4', '整備': 'L4', '故障判定': 'N4' };
   Object.keys(workTypeCells).forEach(function (k) {
