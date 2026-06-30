@@ -448,17 +448,23 @@ function saveRecord(){
   if(!n){toast('保存名を入力してください');return;}
   var btn=document.getElementById('btn-ms');
   btn.disabled=true;btn.textContent='保存中...';
-  apiCall('saveRecord', {name:n, data:collect()})
+  var payload={name:n, data:collect()};
+  if(currentRecordId) payload.id=currentRecordId;
+  apiCall('saveRecord', payload)
   .then(function(rec){
+    var isUpdate=!!currentRecordId;
     currentRecordId=rec.id;
     setCurrentRecord(rec.id);
     hideModal();
-    toast('「'+n+'」を保存しました');
-    // ローカルにも保存（一覧表示用）
+    toast('「'+n+'」を'+(isUpdate?'更新':'保存')+'しました');
+    // ローカルにも保存（一覧表示用）。既存IDなら上書き、なければ新規追加
     var recs=getRecs();
     var now=new Date();
     var ts=now.getFullYear()+'/'+(('0'+(now.getMonth()+1)).slice(-2))+'/'+(('0'+now.getDate()).slice(-2))+' '+(('0'+now.getHours()).slice(-2))+':'+(('0'+now.getMinutes()).slice(-2));
-    recs.unshift({id:rec.id,name:n,ts:ts,data:collect()});
+    var idx=-1;
+    for(var i=0;i<recs.length;i++){if(recs[i].id===rec.id){idx=i;break;}}
+    if(idx>=0){recs[idx]={id:rec.id,name:n,ts:ts,data:collect()};}
+    else{recs.unshift({id:rec.id,name:n,ts:ts,data:collect()});}
     saveRecs(recs);
   }).catch(function(e){toast('保存エラー: '+e.message);})
   .finally?undefined:(function(){});
@@ -498,7 +504,7 @@ function buildList(b,recs){
     h+='<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;margin-bottom:3px;">'+r.name+'</div>';
     h+='<div style="font-size:11px;color:var(--g600);">保存日時: '+ts+'</div></div>';
     h+='<div style="display:flex;gap:8px;margin-left:10px;">';
-    h+='<button class="nbtn nnext" style="padding:7px 14px;font-size:12px;" data-load="'+r.id+'">読込</button>';
+    h+='<button class="nbtn nnext" style="padding:7px 14px;font-size:12px;" data-load="'+r.id+'">編集</button>';
     h+='<button class="nbtn nback" style="padding:7px 10px;font-size:12px;color:var(--red);" data-del="'+r.id+'">削除</button>';
     h+='</div></div>';
   }
@@ -509,11 +515,11 @@ function loadRec(id){
   // まずサーバーから取得を試みる
   apiCall('getRecord', {id:id})
   .then(function(rec){
-    clearFm();restore(rec.data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+rec.name+'」を読み込みました');
+    clearFm();restore(rec.data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+rec.name+'」を編集モードで開きました');
   }).catch(function(){
     // サーバーになければローカルから
     var recs=getRecs();
-    for(var i=0;i<recs.length;i++){if(recs[i].id===id){clearFm();restore(recs[i].data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+recs[i].name+'」を読み込みました');return;}}
+    for(var i=0;i<recs.length;i++){if(recs[i].id===id){clearFm();restore(recs[i].data);currentRecordId=id;setCurrentRecord(id);showTab('header');toast('「'+recs[i].name+'」を編集モードで開きました');return;}}
   });
 }
 function delRec(id){
@@ -592,7 +598,7 @@ document.addEventListener('click',function(e){
   var dl=t.getAttribute('data-load');if(dl){loadRec(dl);return;}
   var dd=t.getAttribute('data-del');if(dd){delRec(dd);return;}
   // 新規
-  if(t.id==='btn-new'){clearFm();showTab('header');toast('新規入力を開始します');return;}
+  if(t.id==='btn-new'){clearFm();currentRecordId=null;setCurrentRecord(null);showTab('header');toast('新規入力を開始します');return;}
   // 写真削除
   var pdel = t.getAttribute('data-photo-del');
   if (pdel) { deletePhoto(pdel); return; }
