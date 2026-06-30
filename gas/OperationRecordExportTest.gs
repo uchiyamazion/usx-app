@@ -88,10 +88,13 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
   safeSet(sheet, 'T3', data['作業日時']);
   safeSet(sheet, 'T4', data['作業者']);
   safeSet(sheet, 'E5', data['系統名']);
-  safeSet(sheet, 'F6', data['型式']);
+  if (data['型式'] !== undefined && data['型式'] !== null && data['型式'] !== '') {
+    safeSet(sheet, 'E6', 'RUA-');
+    safeSet(sheet, 'F6', data['型式']);
+  }
   safeSet(sheet, 'E7', data['運転状態']);
   if (data['設定温度'] !== undefined && data['設定温度'] !== null) {
-    safeSet(sheet, 'F7', String(data['設定温度']) + '℃');
+    safeSet(sheet, 'H7', String(data['設定温度']) + '℃');
   }
   safeSet(sheet, 'T7', data['連結台数']);
   safeSet(sheet, 'E8', data['設置年月日']);
