@@ -439,6 +439,12 @@ function genExcel(){
 }
 
 var RK='usx_records';
+function fmtJST(isoStr){
+  if(!isoStr) return '';
+  var d=new Date(isoStr);
+  if(isNaN(d.getTime())) return isoStr;
+  return d.getFullYear()+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
 function getRecs(){try{return JSON.parse(localStorage.getItem(RK)||'[]');}catch(e){return[];}}
 function saveRecs(r){try{localStorage.setItem(RK,JSON.stringify(r));}catch(e){}}
 function showModal(){document.getElementById('save-name').value=gv('f-現場名');document.getElementById('modal').classList.add('open');}
@@ -481,7 +487,7 @@ function renderList(){
     var localIds=localRecs.map(function(r){return r.id;});
     serverRecs.forEach(function(sr){
       if(localIds.indexOf(sr.id)<0){
-        localRecs.unshift({id:sr.id,name:sr.name,ts:sr.created_at?sr.created_at.slice(0,16).replace('T',' '):''});
+        localRecs.unshift({id:sr.id,name:sr.name,ts:fmtJST(sr.created_at)});
       }
     });
     saveRecs(localRecs);
@@ -499,7 +505,7 @@ function buildList(b,recs){
   var h='';
   for(var i=0;i<recs.length;i++){
     var r=recs[i];
-    var ts=r.ts||r.created_at||'';if(ts.length>16)ts=ts.slice(0,16).replace('T',' ');
+    var ts=r.ts||fmtJST(r.created_at)||'';
     h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1.5px solid var(--g200);border-radius:10px;margin-bottom:10px;">';
     h+='<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;margin-bottom:3px;">'+r.name+'</div>';
     h+='<div style="font-size:11px;color:var(--g600);">保存日時: '+ts+'</div></div>';
