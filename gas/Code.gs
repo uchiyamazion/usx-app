@@ -1,12 +1,9 @@
 /**
  * ===== Webアプリ エントリポイント (doGet / doPost) =====
  *
- * Flask版は /, /api/records, /api/photos/:id, /generate などパスごとに
- * ルーティングしていたが、GAS Webアプリは1つのURLしか持てないため、
- * ・doGet  : ページ(Index.html)を返すだけ
- * ・doPost : { action, payload } を受け取り、actionで内部処理を振り分ける
- * という構成に統一する。Index.html側のフロントJSも、全てのAPI呼び出しを
- * apiCall(action, payload) という単一関数経由に変更済み（gas/Index.html参照）。
+ * フロントエンドはGitHub Pages（usx-app/index.html）に統一済み。
+ * このGASはAPI専用（doPostのみ）として動作する。
+ * doGetはヘルスチェック用に簡易メッセージを返すのみで、HTML描画は行わない。
  *
  * デプロイ方法：
  *   Apps Scriptエディタ右上「デプロイ」→「新しいデプロイ」→
@@ -15,14 +12,8 @@
  */
 
 function doGet(e) {
-  var template = HtmlService.createTemplateFromFile('Index');
-  // Index.htmlは実際にはgoogleusercontent.comのiframe内で動くため、
-  // fetch('')のような相対パスでは自分自身(script.google.com/.../exec)を
-  // 指せない。デプロイURLを明示的に埋め込み、フロントのapiCall()から使う。
-  template.webAppUrl = ScriptApp.getService().getUrl();
-  return template.evaluate()
-    .setTitle('USX 単体運転記録表')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, user-scalable=no');
+  return ContentService.createTextOutput('USX API is running. Frontend: https://uchiyamazion.github.io/usx-app/')
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 function doPost(e) {
