@@ -212,7 +212,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div class="ch">📷 現場写真</div>
     <div class="cb">
       <div id="photo-record-info" style="margin-bottom:12px;padding:10px;background:var(--g50);border-radius:8px;font-size:13px;color:var(--g600);">
-        先に「記録一覧」から記録を読み込むか、「保存」してから写真を追加してください。
+        写真を追加するには、先に記録を保存する必要があります。<br>
+        <button class="nbtn nnext" id="btn-save-for-photo" style="margin-top:10px;width:100%;">💾 保存して写真を追加する</button>
       </div>
       <div id="photo-upload-area" style="display:none;">
         <div style="margin-bottom:14px;">
@@ -312,7 +313,7 @@ function showTab(name){
   for(var i=0;i<ts.length;i++){ts[i].classList[ts[i].getAttribute('data-tab')===name?'add':'remove']('on');}
   if(name==='export') updPrev();
   if(name==='list') renderList();
-  if(name==='photos'){ if(currentRecordId){ loadPhotos(); } else { autoSaveAndShowPhotos(); } }
+  if(name==='photos'){ if(currentRecordId){ loadPhotos(); } else { showPhotoNeedsSave(); } }
   window.scrollTo(0,0);
 }
 
@@ -609,20 +610,10 @@ document.addEventListener('click',function(e){
   var pdel = t.getAttribute('data-photo-del');
   if (pdel) { deletePhoto(pdel); return; }
   // 写真アップロード
+  if (t.id === 'btn-save-for-photo') { autoSaveAndShowPhotos(); return; }
   if (t.id === 'btn-upload-photo') { uploadPhoto(); return; }
   // 写真付きExcel
   if (t.id === 'btn-excel-photo') { genExcelWithPhotos(); return; }
-  // 写真タブ表示時
-  if (t.getAttribute && t.getAttribute('data-tab') === 'photos') {
-    showTab('photos');
-    if (currentRecordId) {
-      loadPhotos();
-    } else {
-      // 未保存なら自動で保存してから写真タブを表示
-      autoSaveAndShowPhotos();
-    }
-    return;
-  }
 
   // ピル（ラジオ）
   if(t.classList&&t.classList.contains('pill')&&!t.classList.contains('ck')){
@@ -645,6 +636,13 @@ document.addEventListener('click',function(e){
 
 // ===== 写真機能 =====
 var currentRecordId = null;
+
+function showPhotoNeedsSave() {
+  var info = document.getElementById('photo-record-info');
+  var area = document.getElementById('photo-upload-area');
+  if (info) info.style.display = 'block';
+  if (area) area.style.display = 'none';
+}
 
 function autoSaveAndShowPhotos() {
   // 現場名を取得（なければ日時で自動命名）
