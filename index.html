@@ -75,12 +75,12 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 @media(max-width:600px){.fg3{grid-template-columns:1fr 1fr;}.pcgrid{grid-template-columns:1fr;}}
 .mt input.out-val{background:#fee2e2 !important;color:var(--red);font-weight:700;}
 .mt input.warn-val{background:#fff7ed !important;color:var(--orange);}
-.site-sel{width:100%;padding:10px 11px;border:1.5px solid var(--blue);border-radius:9px;font-size:15px;background:var(--blue-light);font-family:inherit;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
-.site-card{background:#eff6ff;border:1.5px solid #93c5fd;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
-.site-row{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1.5px solid var(--g200);border-radius:10px;margin-bottom:8px;background:#fff;}
-.site-row:hover{border-color:var(--blue);}
-.sdel{padding:5px 10px;border-radius:7px;border:1.5px solid var(--g200);background:#fff;cursor:pointer;font-size:12px;color:var(--red);-webkit-appearance:none;}
-.sedit{padding:5px 10px;border-radius:7px;border:1.5px solid var(--blue);background:var(--blue-light);cursor:pointer;font-size:12px;color:var(--blue);-webkit-appearance:none;}
+
+
+
+
+
+
 </style>
 </head>
 <body>
@@ -96,17 +96,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <button class="tbtn" data-tab="export">Excel出力</button>
   <button class="tbtn" data-tab="list">記録一覧</button>
   <button class="tbtn" data-tab="photos">📷 写真</button>
-  <button class="tbtn" data-tab="sites">🏢 現場</button>
 </div>
 
 <div class="pg" id="pg-header">
-  <div class="site-card">
-    <span style="font-size:18px;">🏢</span>
-    <select class="site-sel" id="site-select" style="flex:1;">
-      <option value="">── 現場マスタから選択 ──</option>
-    </select>
-    <button class="nbtn nnext" id="btn-site-apply" style="padding:9px 14px;font-size:13px;white-space:nowrap;">適用</button>
-  </div>
   <div class="card"><div class="ch">現場・作業情報</div><div class="cb">
     <div class="fg" style="margin-bottom:12px;">
       <div class="fl"><label>現場名</label><input type="text" id="f-現場名" placeholder="例: ○○小学校 空調工事"></div>
@@ -250,37 +242,6 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   </div>
 </div>
 
-<!-- 現場マスタ -->
-<div class="pg" id="pg-sites">
-  <div class="card"><div class="ch">🏢 現場マスタ登録</div><div class="cb">
-    <div class="fg" style="margin-bottom:12px;">
-      <div class="fl"><label>現場名 *</label><input type="text" id="sm-name" placeholder="例: ○○小学校"></div>
-      <div class="fl"><label>住所</label><input type="text" id="sm-addr" placeholder="例: 北海道○○市..."></div>
-    </div>
-    <div class="fg fg2" style="margin-bottom:12px;">
-      <div class="fl"><label>系統名</label><input type="text" id="sm-sys" placeholder="例: R-1系統"></div>
-      <div class="fl"><label>連結台数</label><input type="number" id="sm-units" min="1" max="12" placeholder="4"></div>
-    </div>
-    <div class="fg fg3" style="margin-bottom:12px;">
-      <div class="fl"><label>型式（RUA-の右）</label><input type="text" id="sm-type" placeholder="例: UP455HKZGM"></div>
-      <div class="fl"><label>冷媒種類</label><select id="sm-refrig"><option value="">選択</option><option>R-410A</option><option>R-134a</option><option>R-32</option><option>R-404A</option><option>R-407C</option></select></div>
-      <div class="fl"><label>設置年月日</label><input type="text" id="sm-installed" placeholder="例: 2020年4月"></div>
-    </div>
-    <div class="fl" style="margin-bottom:12px;"><label>メモ</label><input type="text" id="sm-memo" placeholder="備考など"></div>
-    <input type="hidden" id="sm-edit-id">
-    <div style="display:flex;gap:10px;">
-      <button class="nbtn nnext" id="btn-site-save" style="flex:1;">💾 登録・更新</button>
-      <button class="nbtn nback" id="btn-site-clear" style="padding:12px 16px;">クリア</button>
-    </div>
-  </div></div>
-  <div class="card"><div class="ch">登録済み現場一覧</div><div class="cb">
-    <button class="nbtn nback" id="btn-site-import" style="width:100%;margin-bottom:12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;padding:11px;">📥 保存済み記録から現場を取り込む</button>
-  <div id="site-list-body">
-    <p style="color:var(--g600);font-size:13px;text-align:center;padding:20px;">現場が登録されていません</p>
-  </div>
-  </div></div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -348,7 +309,7 @@ var GL={基本:'基本運転データ',冷温水:'冷(温)水系統',電気:'電
 var CR=['A','B','C','D'];
 var CG={'圧縮機関係':['異常音','異常振動','圧力不良','オイル量','異常過熱'],'凝縮器関係':['汚れ','流量不足','Yスト詰り','風量不足'],'蒸発器関係':['汚れ','流量不足','Yスト詰り','風量不足'],'送風機関係':['異常音','異常振動','ショートサイクル'],'冷媒配管系統部品関係':['ストレーナ','四方弁','電磁弁','膨張弁'],'電装品関係':['センサー','リレー','トランス','制御基板','通信不具合'],'補機関係':['ポンプ','圧力計','アキュムレータ'],'その他':['その他']};
 var PC=['電装品結線状態確認','通信線アドレス設定','熱源機外観点検','内蔵ポンプ動作確認','水配管フラッシング','12時間前通電','冷媒漏洩点検','インターロック動作確認'];
-var TABS=['header','units','checks','precheck','export','list','photos','sites'];
+var TABS=['header','units','checks','precheck','export','list','photos'];
 var pst={},pre={},uc=1,cu=1;
 
 function showTab(name){
@@ -361,7 +322,6 @@ function showTab(name){
   if(name==='export') updPrev();
   if(name==='list') renderList();
   if(name==='photos'){ if(currentRecordId){ loadPhotos(); } else { showPhotoNeedsSave(); } }
-  if(name==='sites'){ renderSiteList(); }
   window.scrollTo(0,0);
 }
 
@@ -551,21 +511,55 @@ function renderList(){
 
 function buildList(b,recs){
   if(recs.length===0){b.innerHTML='<p style="color:var(--g600);font-size:13px;text-align:center;padding:20px;">保存された記録はありません</p>';return;}
-  var h='';
+  // 現場名でグループ化（data.現場名 → なければ保存名から推定）
+  var groups={}, groupOrder=[];
   for(var i=0;i<recs.length;i++){
     var r=recs[i];
-    var ts=r.ts||fmtJST(r.created_at)||'';
-    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1.5px solid var(--g200);border-radius:10px;margin-bottom:10px;">';
-    h+='<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;margin-bottom:3px;">'+r.name+'</div>';
-    h+='<div style="font-size:11px;color:var(--g600);">保存日時: '+ts+'</div></div>';
-    h+='<div style="display:flex;gap:8px;margin-left:10px;">';
-    h+='<button class="nbtn nback" style="padding:7px 12px;font-size:12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;" data-ref-load="'+r.id+'">引用</button>';
-    h+='<button class="nbtn nnext" style="padding:7px 14px;font-size:12px;" data-load="'+r.id+'">編集</button>';
-    h+='<button class="nbtn nback" style="padding:7px 10px;font-size:12px;color:var(--red);" data-del="'+r.id+'">削除</button>';
+    var siteName=(r.data&&r.data['現場名'])?r.data['現場名']:r.name;
+    if(!groups[siteName]){groups[siteName]=[];groupOrder.push(siteName);}
+    groups[siteName].push(r);
+  }
+  var h='';
+  for(var gi=0;gi<groupOrder.length;gi++){
+    var sn=groupOrder[gi];
+    var grp=groups[sn];
+    // 現場ヘッダー（折りたたみ）
+    h+='<div style="margin-bottom:14px;">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--g100);border:1.5px solid var(--g200);border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;" data-toggle="grp-'+gi+'">';
+    h+='<span>🏢 '+sn+'</span><span style="font-size:11px;color:var(--g600);font-weight:400;">'+grp.length+'件 ▼</span></div>';
+    h+='<div id="grp-'+gi+'" style="margin-top:6px;">';
+    for(var ri=0;ri<grp.length;ri++){
+      var r=grp[ri];
+      var ts=r.ts||fmtJST(r.created_at)||'';
+      var sys=(r.data&&r.data['系統名'])?r.data['系統名']:'';
+      var kubun=(r.data&&r.data['作業区分'])?r.data['作業区分']:'';
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1.5px solid var(--g200);border-radius:9px;margin-bottom:6px;margin-left:8px;background:#fff;">';
+      h+='<div style="flex:1;min-width:0;">';
+      h+='<div style="font-size:13px;font-weight:700;">'+(sys||r.name)+(kubun?' <span style="font-size:11px;color:var(--blue);font-weight:400;">['+kubun+']</span>':'')+'</div>';
+      h+='<div style="font-size:11px;color:var(--g600);">'+ts+'</div>';
+      h+='</div>';
+      h+='<div style="display:flex;gap:6px;margin-left:8px;">';
+      h+='<button class="nbtn nback" style="padding:6px 10px;font-size:12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;" data-ref-load="'+r.id+'">引用</button>';
+      h+='<button class="nbtn nnext" style="padding:6px 12px;font-size:12px;" data-load="'+r.id+'">編集</button>';
+      h+='<button class="nbtn nback" style="padding:6px 8px;font-size:12px;color:var(--red);" data-del="'+r.id+'">削除</button>';
+      h+='</div></div>';
+    }
     h+='</div></div>';
   }
   h+='<div style="text-align:center;margin-top:6px;"><button class="nbtn nback" id="btn-new">+ 新規入力</button></div>';
   b.innerHTML=h;
+  // 折りたたみ
+  b.querySelectorAll('[data-toggle]').forEach(function(el){
+    el.addEventListener('click',function(){
+      var id=this.getAttribute('data-toggle');
+      var box=document.getElementById(id);
+      if(!box)return;
+      var open=box.style.display!=='none';
+      box.style.display=open?'none':'';
+      var arr=this.querySelector('span:last-child');
+      if(arr)arr.textContent=arr.textContent.replace(open?'▼':'▲',open?'▲':'▼');
+    });
+  });
 }
 function loadRec(id){
   // まずサーバーから取得を試みる
@@ -659,12 +653,6 @@ document.addEventListener('click',function(e){
   // 引用
   var drl=t.getAttribute('data-ref-load');if(drl){loadRecAsRef(drl);return;}
   // 現場マスタ
-  if(t.id==='btn-site-apply'){applySite();return;}
-  if(t.id==='btn-site-import'){importSitesFromRecords();return;}
-  if(t.id==='btn-site-save'){saveSiteMaster();return;}
-  if(t.id==='btn-site-clear'){clearSiteForm();return;}
-  var dse=t.getAttribute('data-site-edit');if(dse){editSite(dse);return;}
-  var dsd=t.getAttribute('data-site-del');if(dsd){if(confirm('削除しますか？')){deleteSite(dsd);}return;}
   // 写真削除
   var pdel = t.getAttribute('data-photo-del');
   if (pdel) { deletePhoto(pdel); return; }
@@ -723,199 +711,6 @@ function checkRef(input) {
 function checkAllRefs() {
   var inputs = document.querySelectorAll('.mt input[data-ref]');
   for (var i = 0; i < inputs.length; i++) checkRef(inputs[i]);
-}
-
-// ===== ① 現場マスタ管理 =====
-var SK = 'usx_sites';
-function getSites() { try { return JSON.parse(localStorage.getItem(SK) || '[]'); } catch(e) { return []; } }
-function saveSites(s) { try { localStorage.setItem(SK, JSON.stringify(s)); } catch(e) {} }
-
-function renderSiteSelect() {
-  var sel = document.getElementById('site-select');
-  if (!sel) return;
-  var sites = getSites();
-  sel.innerHTML = '<option value="">── 現場マスタから選択 ──</option>';
-  for (var i = 0; i < sites.length; i++) {
-    sel.innerHTML += '<option value="' + sites[i].id + '">' + sites[i].name + (sites[i].system ? ' / ' + sites[i].system : '') + '</option>';
-  }
-}
-
-function applySite() {
-  var sel = document.getElementById('site-select');
-  if (!sel || !sel.value) { toast('現場を選択してください'); return; }
-  var sites = getSites();
-  var site = null;
-  for (var i = 0; i < sites.length; i++) { if (sites[i].id === sel.value) { site = sites[i]; break; } }
-  if (!site) return;
-  var fields = {
-    '現場名': site.name, '住所': site.address || '',
-    '系統名': site.system || '', '連結台数': site.units || '',
-    '型式': site.type || '', '冷媒種類': site.refrigerant || '',
-    '設置年月日': site.installed || ''
-  };
-  for (var k in fields) {
-    var e = document.getElementById('f-' + k);
-    if (e && fields[k]) e.value = fields[k];
-  }
-  if (site.units) setCount(parseInt(site.units, 10));
-  toast('「' + site.name + '」の情報を適用しました');
-}
-
-function renderSiteList() {
-  var b = document.getElementById('site-list-body'); if (!b) return;
-  var sites = getSites();
-  if (sites.length === 0) {
-    b.innerHTML = '<p style="color:var(--g600);font-size:13px;text-align:center;padding:20px;">現場が登録されていません</p>';
-    return;
-  }
-  var h = '';
-  for (var i = 0; i < sites.length; i++) {
-    var s = sites[i];
-    h += '<div class="site-row">';
-    h += '<div style="flex:1;min-width:0;">';
-    h += '<div style="font-size:14px;font-weight:700;">' + s.name + '</div>';
-    h += '<div style="font-size:11px;color:var(--g600);margin-top:2px;">';
-    if (s.system) h += s.system + ' ';
-    if (s.type) h += '| RUA-' + s.type + ' ';
-    if (s.units) h += '| ' + s.units + '台 ';
-    if (s.refrigerant) h += '| ' + s.refrigerant;
-    h += '</div>';
-    if (s.address) h += '<div style="font-size:11px;color:var(--g600);">' + s.address + '</div>';
-    h += '</div>';
-    h += '<div style="display:flex;gap:6px;margin-left:8px;">';
-    h += '<button class="sedit" data-site-edit="' + s.id + '">編集</button>';
-    h += '<button class="sdel" data-site-del="' + s.id + '">削除</button>';
-    h += '</div></div>';
-  }
-  b.innerHTML = h;
-}
-
-function saveSiteMaster() {
-  var name = document.getElementById('sm-name').value.trim();
-  if (!name) { toast('現場名を入力してください'); return; }
-  var editId = document.getElementById('sm-edit-id').value;
-  var site = {
-    id: editId || 'site_' + Date.now(),
-    name: name,
-    address: document.getElementById('sm-addr').value.trim(),
-    system: document.getElementById('sm-sys').value.trim(),
-    units: document.getElementById('sm-units').value,
-    type: document.getElementById('sm-type').value.trim(),
-    refrigerant: document.getElementById('sm-refrig').value,
-    installed: document.getElementById('sm-installed').value.trim(),
-    memo: document.getElementById('sm-memo').value.trim()
-  };
-  var sites = getSites();
-  if (editId) {
-    for (var i = 0; i < sites.length; i++) { if (sites[i].id === editId) { sites[i] = site; break; } }
-  } else {
-    sites.unshift(site);
-  }
-  saveSites(sites);
-  clearSiteForm();
-  renderSiteList();
-  renderSiteSelect();
-  toast((editId ? '更新' : '登録') + 'しました: ' + name);
-}
-
-function importSitesFromRecords() {
-  var btn = document.getElementById('btn-site-import');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 取り込み中...'; }
-  // サーバーから全記録を取得してから処理
-  apiCall('getRecords', {})
-  .then(function(serverRecs) {
-    // ローカル記録とマージ
-    var localRecs = getRecs();
-    var allRecs = serverRecs.length > 0 ? serverRecs : localRecs;
-    // ローカルにしかないものも追加
-    var serverIds = serverRecs.map(function(r){ return r.id; });
-    localRecs.forEach(function(r){ if(serverIds.indexOf(r.id) < 0) allRecs.push(r); });
-    return allRecs;
-  }).catch(function() {
-    return getRecs();
-  }).then(function(allRecs) {
-    // ローカルキャッシュ（dataあり）とサーバー一覧をマージ
-    var localMap = {};
-    getRecs().forEach(function(r){ if(r.id) localMap[r.id] = r; });
-    // サーバー一覧にローカルdataを補完
-    var merged = allRecs.map(function(r){
-      return localMap[r.id] ? localMap[r.id] : r;
-    });
-    // ローカルにしかないものも追加
-    var serverIds = allRecs.map(function(r){ return r.id; });
-    getRecs().forEach(function(r){ if(serverIds.indexOf(r.id) < 0) merged.push(r); });
-
-    var sites = getSites();
-    var existNames = sites.map(function(s){ return s.name + '|' + (s.system||''); });
-    var added = 0;
-
-    merged.forEach(function(rec) {
-      var d = rec.data;
-      var name = (d && d['現場名']) ? d['現場名'] : rec.name;
-      if (!name) return;
-      var sysName = (d && d['系統名']) ? d['系統名'] : '';
-      var key = name + '|' + sysName;
-      if (existNames.indexOf(key) >= 0) return;
-      existNames.push(key);
-      var site = {
-        id: 'site_' + Date.now() + '_' + added,
-        name: name,
-        address: (d && d['住所']) || '',
-        system: sysName,
-        units: (d && d['連結台数']) || '',
-        type: (d && d['型式']) || '',
-        refrigerant: (d && d['冷媒種類']) || '',
-        installed: (d && d['設置年月日']) || '',
-        memo: ''
-      };
-      sites.unshift(site);
-      added++;
-    });
-
-    saveSites(sites);
-    renderSiteList();
-    renderSiteSelect();
-    if (btn) { btn.disabled = false; btn.textContent = '📥 保存済み記録から現場を取り込む'; }
-    if (added > 0) toast(added + '件の現場を取り込みました');
-    else toast('新しい現場はありませんでした（重複は除外）');
-  });
-}
-
-function clearSiteForm() {
-  ['sm-name','sm-addr','sm-sys','sm-units','sm-type','sm-installed','sm-memo'].forEach(function(id){
-    var e = document.getElementById(id); if (e) e.value = '';
-  });
-  var r = document.getElementById('sm-refrig'); if (r) r.value = '';
-  var ei = document.getElementById('sm-edit-id'); if (ei) ei.value = '';
-  var btn = document.getElementById('btn-site-save'); if (btn) btn.textContent = '💾 登録・更新';
-}
-
-function editSite(id) {
-  var sites = getSites();
-  for (var i = 0; i < sites.length; i++) {
-    if (sites[i].id === id) {
-      var s = sites[i];
-      document.getElementById('sm-name').value = s.name || '';
-      document.getElementById('sm-addr').value = s.address || '';
-      document.getElementById('sm-sys').value = s.system || '';
-      document.getElementById('sm-units').value = s.units || '';
-      document.getElementById('sm-type').value = s.type || '';
-      document.getElementById('sm-refrig').value = s.refrigerant || '';
-      document.getElementById('sm-installed').value = s.installed || '';
-      document.getElementById('sm-memo').value = s.memo || '';
-      document.getElementById('sm-edit-id').value = id;
-      var btn = document.getElementById('btn-site-save'); if (btn) btn.textContent = '✏️ 更新する';
-      window.scrollTo(0, 0);
-      return;
-    }
-  }
-}
-
-function deleteSite(id) {
-  saveSites(getSites().filter(function(s){ return s.id !== id; }));
-  renderSiteList();
-  renderSiteSelect();
-  toast('削除しました');
 }
 
 // ===== ② 過去データ引用（新規記録として開始）=====
@@ -1114,7 +909,6 @@ function genExcelWithPhotos() {
 window.addEventListener('load',function(){
   for(var i=0;i<TABS.length;i++){var pg=document.getElementById('pg-'+TABS[i]);if(pg)pg.style.display=(TABS[i]==='header')?'block':'none';}
   buildPanels();setCount(1);buildChecks();buildPrecheck();
-  renderSiteSelect();
 });
 </script>
 </body>
