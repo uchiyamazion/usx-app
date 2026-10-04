@@ -718,6 +718,47 @@ var IMPORT_FIELD_ROWS = [
   ['出荷時充填量',46,true],['初期充填量',47,true],['総充填量',48,true]
 ];
 
+var _pendingWb = null;
+
+function showSheetSelector(wb, sheets, resEl, fileName) {
+  _pendingWb = wb;
+  resEl.style.display = 'block';
+  resEl.style.background = '#eff6ff';
+  resEl.style.border = '1px solid #93c5fd';
+  var h = '<div style="font-weight:700;margin-bottom:10px;">📋 複数の系統シートが見つかりました</div>';
+  h += '<div style="font-size:12px;color:var(--g600);margin-bottom:10px;">取り込みたいシートにチェックを入れてください（複数選択可）</div>';
+  sheets.forEach(function(sn, i) {
+    var s = wb.Sheets[sn];
+    var siteName = (s && s['D2'] && s['D2'].v) ? String(s['D2'].v) : '';
+    var sys = (s && s['E5'] && s['E5'].v) ? String(s['E5'].v) : sn;
+    h += '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--g200);border-radius:8px;margin-bottom:6px;cursor:pointer;background:#fff;">';
+    h += '<input type="checkbox" data-sheet-idx="'+i+'" value="'+sn+'" checked style="width:16px;height:16px;">';
+    h += '<span><strong>'+sn+'</strong>'+(siteName?' — '+siteName:'')+'</span></label>';
+  });
+  h += '<button class="nbtn nnext" id="btn-import-sheets" style="width:100%;margin-top:10px;">✅ 選択したシートを取り込む</button>';
+  resEl.innerHTML = h;
+  // ボタン処理
+  document.getElementById('btn-import-sheets').addEventListener('click', function() {
+    var checked = resEl.querySelectorAll('input[data-sheet-idx]:checked');
+    var selected = Array.prototype.map.call(checked, function(el){ return el.value; });
+    if (selected.length === 0) { alert('シートを1つ以上選択してください'); return; }
+    doImportSheets(_pendingWb, selected, resEl);
+  });
+}
+
+function doImportSheets(wb, sheetNames, resEl) {
+  resEl.style.background = '#fef9c3';
+  resEl.style.border = '1px solid #fbbf24';
+  resEl.textContent = '⏳ 読み込み中...';
+  try {
+    doImportCore(wb, sheetNames, resEl);
+  } catch(err) {
+    resEl.style.background = '#fee2e2';
+    resEl.style.border = '1px solid #fca5a5';
+    resEl.innerHTML = '❌ 読み込みエラー: ' + err.message;
+  }
+}
+
 function cellVal(ws, addr) {
   var c = ws[addr];
   if (!c) return '';
@@ -738,25 +779,51 @@ function importFromExcel(file) {
     try {
       var wb = XLSX.read(e.target.result, {type: 'array'});
       // 運転記録シートを特定
-      // 判定方法: ①「号機」含む ②「系統」含む ③D2(現場名)またはH11(1台目No.)に値がある
-      // 除外: 写真台帳・表紙・目次など
-      var EXCLUDE_WORDS = ['写真','表紙','目次','概要','説明','index','cover'];
+      var EXCLUDE_WORDS = ['写真','表紙','目次','概要','説明','前回比','比較','集計','サマリ','summary','index','cover','sheet'];
       function isExcluded(n) {
         var nl = n.toLowerCase();
         return EXCLUDE_WORDS.some(function(w){ return nl.indexOf(w) >= 0; });
       }
       function isRecordSheet(n) {
         if (isExcluded(n)) return false;
-        if (n.indexOf('号機') >= 0 || n.indexOf('系統') >= 0) return true;
+        // 「号機」は複数シートで1系統 → まとめて読む
+        if (n.indexOf('号機') >= 0) return true;
+        // 「系統」含む or 英数字・ハイフン系のシート名はD2+H11で判定
         var s = wb.Sheets[n];
         if (!s) return false;
-        // D2(現場名) or H11(1台目のNo.) or G11に値があれば運転記録シートと判断
-        return (s['D2'] && s['D2'].v) || (s['H11'] && s['H11'].v) || (s['G11'] && s['G11'].v);
+        var hasD2 = s['D2'] && s['D2'].v;
+        var hasUnit = (s['H11'] && s['H11'].v) || (s['G11'] && s['G11'].v);
+        return hasD2 || hasUnit;
       }
-      var recSheets = wb.SheetNames.filter(isRecordSheet);
-      if (recSheets.length === 0) throw new Error('運転記録シートが見つかりません。シート名に「号機」「系統」を含むか、D2に現場名が入っているシートが必要です');
+
+      var allRecSheets = wb.SheetNames.filter(isRecordSheet);
+      if (allRecSheets.length === 0) throw new Error('運転記録シートが見つかりません');
+
+      // 「号機」シートがある → 複数まとめて1記録
+      var gouKiSheets = allRecSheets.filter(function(n){ return n.indexOf('号機') >= 0; });
+      var isMultiSystem = gouKiSheets.length === 0 && allRecSheets.length > 1;
+
+      // 複数の系統シートがある場合 → どれを取り込むか選択させる
+      if (isMultiSystem) {
+        // シート選択UIを表示して処理を中断
+        showSheetSelector(wb, allRecSheets, res, file.name);
+        return;
+      }
+
+      var recSheets = gouKiSheets.length > 0 ? gouKiSheets : allRecSheets;
+      doImportCore(wb, recSheets, res);
+    } catch(err) {
+      res.style.background = '#fee2e2';
+      res.style.border = '1px solid #fca5a5';
+      res.innerHTML = '❌ 読み込みエラー: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function doImportCore(wb, recSheets, res) {
       var wsName = recSheets[0];
-      var ws = wb.Sheets[wsName]; // 基本情報は1枚目から読む
+      var ws = wb.Sheets[wsName];
 
       var data = {};
 
@@ -879,13 +946,6 @@ function importFromExcel(file) {
         + '<small style="color:var(--g600);">' + recSheets.length + 'シート / ' + nonEmpty + '台分のデータを復元。新規記録として保存されます。</small>';
       toast('Excelからインポートしました');
 
-    } catch(err) {
-      res.style.background = '#fee2e2';
-      res.style.border = '1px solid #fca5a5';
-      res.innerHTML = '❌ 読み込みエラー: ' + err.message;
-    }
-  };
-  reader.readAsArrayBuffer(file);
 }
 
 // ファイル選択イベント
