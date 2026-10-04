@@ -273,8 +273,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
       <button class="nbtn nback" id="btn-site-clear" style="padding:12px 16px;">クリア</button>
     </div>
   </div></div>
-  <div class="card"><div class="ch">登録済み現場一覧</div><div class="cb" id="site-list-body">
+  <div class="card"><div class="ch">登録済み現場一覧</div><div class="cb">
+    <button class="nbtn nback" id="btn-site-import" style="width:100%;margin-bottom:12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;padding:11px;">📥 保存済み記録から現場を取り込む</button>
+  <div id="site-list-body">
     <p style="color:var(--g600);font-size:13px;text-align:center;padding:20px;">現場が登録されていません</p>
+  </div>
   </div></div>
 </div>
 
@@ -657,6 +660,7 @@ document.addEventListener('click',function(e){
   var drl=t.getAttribute('data-ref-load');if(drl){loadRecAsRef(drl);return;}
   // 現場マスタ
   if(t.id==='btn-site-apply'){applySite();return;}
+  if(t.id==='btn-site-import'){importSitesFromRecords();return;}
   if(t.id==='btn-site-save'){saveSiteMaster();return;}
   if(t.id==='btn-site-clear'){clearSiteForm();return;}
   var dse=t.getAttribute('data-site-edit');if(dse){editSite(dse);return;}
@@ -812,6 +816,69 @@ function saveSiteMaster() {
   renderSiteList();
   renderSiteSelect();
   toast((editId ? '更新' : '登録') + 'しました: ' + name);
+}
+
+function importSitesFromRecords() {
+  var btn = document.getElementById('btn-site-import');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 取り込み中...'; }
+  // サーバーから全記録を取得してから処理
+  apiCall('getRecords', {})
+  .then(function(serverRecs) {
+    // ローカル記録とマージ
+    var localRecs = getRecs();
+    var allRecs = serverRecs.length > 0 ? serverRecs : localRecs;
+    // ローカルにしかないものも追加
+    var serverIds = serverRecs.map(function(r){ return r.id; });
+    localRecs.forEach(function(r){ if(serverIds.indexOf(r.id) < 0) allRecs.push(r); });
+    return allRecs;
+  }).catch(function() {
+    return getRecs();
+  }).then(function(allRecs) {
+    // ローカルキャッシュ（dataあり）とサーバー一覧をマージ
+    var localMap = {};
+    getRecs().forEach(function(r){ if(r.id) localMap[r.id] = r; });
+    // サーバー一覧にローカルdataを補完
+    var merged = allRecs.map(function(r){
+      return localMap[r.id] ? localMap[r.id] : r;
+    });
+    // ローカルにしかないものも追加
+    var serverIds = allRecs.map(function(r){ return r.id; });
+    getRecs().forEach(function(r){ if(serverIds.indexOf(r.id) < 0) merged.push(r); });
+
+    var sites = getSites();
+    var existNames = sites.map(function(s){ return s.name + '|' + (s.system||''); });
+    var added = 0;
+
+    merged.forEach(function(rec) {
+      var d = rec.data;
+      var name = (d && d['現場名']) ? d['現場名'] : rec.name;
+      if (!name) return;
+      var sysName = (d && d['系統名']) ? d['系統名'] : '';
+      var key = name + '|' + sysName;
+      if (existNames.indexOf(key) >= 0) return;
+      existNames.push(key);
+      var site = {
+        id: 'site_' + Date.now() + '_' + added,
+        name: name,
+        address: (d && d['住所']) || '',
+        system: sysName,
+        units: (d && d['連結台数']) || '',
+        type: (d && d['型式']) || '',
+        refrigerant: (d && d['冷媒種類']) || '',
+        installed: (d && d['設置年月日']) || '',
+        memo: ''
+      };
+      sites.unshift(site);
+      added++;
+    });
+
+    saveSites(sites);
+    renderSiteList();
+    renderSiteSelect();
+    if (btn) { btn.disabled = false; btn.textContent = '📥 保存済み記録から現場を取り込む'; }
+    if (added > 0) toast(added + '件の現場を取り込みました');
+    else toast('新しい現場はありませんでした（重複は除外）');
+  });
 }
 
 function clearSiteForm() {
