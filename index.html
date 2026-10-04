@@ -737,9 +737,19 @@ function importFromExcel(file) {
   reader.onload = function(e) {
     try {
       var wb = XLSX.read(e.target.result, {type: 'array'});
-      // 運転記録シートを全て取得（写真台帳除外）
-      var recSheets = wb.SheetNames.filter(function(n){ return n.indexOf('写真') < 0; });
-      if (recSheets.length === 0) throw new Error('有効なシートが見つかりません');
+      // 運転記録シートを特定（「号機」含む → なければD2に値があるシート → 最終手段で除外リスト方式）
+      var EXCLUDE = ['表紙','写真','目次','概要','説明','INDEX','index','cover','Cover'];
+      var recSheets = wb.SheetNames.filter(function(n){ return n.indexOf('号機') >= 0; });
+      if (recSheets.length === 0) {
+        // 号機シートがなければD2(現場名セル)に値があるシートを探す
+        recSheets = wb.SheetNames.filter(function(n){
+          var excluded = EXCLUDE.some(function(ex){ return n.indexOf(ex) >= 0; });
+          if (excluded) return false;
+          var s = wb.Sheets[n];
+          return s && s['D2'] && s['D2'].v;
+        });
+      }
+      if (recSheets.length === 0) throw new Error('運転記録シートが見つかりません（シート名に「号機」を含むか、D2セルに現場名が入っているシートが必要です）');
       var wsName = recSheets[0];
       var ws = wb.Sheets[wsName]; // 基本情報は1枚目から読む
 
