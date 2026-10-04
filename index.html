@@ -737,13 +737,11 @@ function importFromExcel(file) {
   reader.onload = function(e) {
     try {
       var wb = XLSX.read(e.target.result, {type: 'array'});
-      // 最初の有効シート（写真台帳以外）を使用
-      var wsName = null;
-      for (var i = 0; i < wb.SheetNames.length; i++) {
-        if (wb.SheetNames[i].indexOf('写真') < 0) { wsName = wb.SheetNames[i]; break; }
-      }
-      if (!wsName) throw new Error('有効なシートが見つかりません');
-      var ws = wb.Sheets[wsName];
+      // 運転記録シートを全て取得（写真台帳除外）
+      var recSheets = wb.SheetNames.filter(function(n){ return n.indexOf('写真') < 0; });
+      if (recSheets.length === 0) throw new Error('有効なシートが見つかりません');
+      var wsName = recSheets[0];
+      var ws = wb.Sheets[wsName]; // 基本情報は1枚目から読む
 
       var data = {};
 
@@ -779,33 +777,36 @@ function importFromExcel(file) {
         if (v && v.indexOf('■') >= 0) data['フロン区分'] = k;
       });
 
-      // 熱源機データ（4台分）
+      // 熱源機データ（全シート合計最大12台）
       var units = [];
-      for (var li = 0; li < IMPORT_UNIT_COLS.length; li++) {
-        var cols = IMPORT_UNIT_COLS[li];
-        var u = {};
-        var noVal = cellVal(ws, cols.no_val + '11');
-        if (!noVal) { units.push({}); continue; }
-        u['No'] = noVal;
-        u['UC製造番号'] = cellVal(ws, cols.info + '12');
-        u['冷却加熱']   = cellVal(ws, cols.info + '13');
-        u['製造年']     = cellVal(ws, cols.info + '14');
-        u['記録時間']   = cellVal(ws, cols.info + '49');
+      recSheets.forEach(function(sName) {
+        var sws = wb.Sheets[sName];
+        for (var li = 0; li < IMPORT_UNIT_COLS.length; li++) {
+          var cols = IMPORT_UNIT_COLS[li];
+          var u = {};
+          var noVal = cellVal(sws, cols.no_val + '11');
+          if (!noVal) { units.push({}); continue; }
+          u['No'] = noVal;
+          u['UC製造番号'] = cellVal(sws, cols.info + '12');
+          u['冷却加熱']   = cellVal(sws, cols.info + '13');
+          u['製造年']     = cellVal(sws, cols.info + '14');
+          u['記録時間']   = cellVal(sws, cols.info + '49');
 
-        IMPORT_FIELD_ROWS.forEach(function(fr) {
-          var field = fr[0], row = fr[1], isCircuit = fr[2];
-          if (isCircuit) {
-            ['A','B','C','D'].forEach(function(c) {
-              var v = cellVal(ws, cols[c] + row);
-              if (v !== '') u[field + '_' + c] = parseFloat(v) || v;
-            });
-          } else {
-            var v = cellVal(ws, cols['A'] + row);
-            if (v !== '') u[field + '_A'] = parseFloat(v) || v;
-          }
-        });
-        units.push(u);
-      }
+          IMPORT_FIELD_ROWS.forEach(function(fr) {
+            var field = fr[0], row = fr[1], isCircuit = fr[2];
+            if (isCircuit) {
+              ['A','B','C','D'].forEach(function(c) {
+                var v = cellVal(sws, cols[c] + row);
+                if (v !== '') u[field + '_' + c] = parseFloat(v) || v;
+              });
+            } else {
+              var v = cellVal(sws, cols['A'] + row);
+              if (v !== '') u[field + '_A'] = parseFloat(v) || v;
+            }
+          });
+          units.push(u);
+        }
+      });
       data['熱源機'] = units;
 
       // チェック結果
@@ -851,13 +852,16 @@ function importFromExcel(file) {
       restore(data);
       currentRecordId = null;
       setCurrentRecord(null);
-      var unitCount = parseInt(data['連結台数']) || 1;
-      setCount(Math.min(Math.max(unitCount, 1), 12));
+      // 連結台数: セル値 or 実際に読めた台数（Noがある台数）の大きい方
+      var nonEmpty = units.filter(function(u){ return u['No']; }).length;
+      var unitCount = Math.max(parseInt(data['連結台数']) || 0, nonEmpty, 1);
+      setCount(Math.min(unitCount, 12));
       showTab('header');
 
       res.style.background = '#f0fdf4';
       res.style.border = '1px solid #86efac';
-      res.innerHTML = '✅ <strong>「' + (data['現場名'] || '不明') + '」</strong> のデータを読み込みました（シート: ' + wsName + '）<br><small style="color:var(--g600);">新規記録として保存されます。内容を確認して「保存」してください。</small>';
+      res.innerHTML = '✅ <strong>「' + (data['現場名'] || '不明') + '」</strong> を読み込みました<br>'
+        + '<small style="color:var(--g600);">' + recSheets.length + 'シート / ' + nonEmpty + '台分のデータを復元。新規記録として保存されます。</small>';
       toast('Excelからインポートしました');
 
     } catch(err) {
