@@ -869,6 +869,16 @@ function flexParseSheet(ws) {
     var addr = XLSX.utils.encode_cell({r:r, c:c});
     var cell = ws[addr];
     if (!cell || cell.v === null || cell.v === undefined) return '';
+    // 日付セル: cell.w(表示値)にスラッシュや年月日があればそのまま使用
+    if (cell.w && /\d{4}[\/\-年]\d{1,2}[\/\-月]?\d{0,2}/.test(cell.w)) return cell.w.trim();
+    // Excelの日付シリアル値(数値)を変換
+    if (cell.t === 'n' && typeof cell.v === 'number' && cell.v > 25000 && cell.v < 60000) {
+      var d = new Date(Math.round((cell.v - 25569) * 86400 * 1000));
+      var yyyy = d.getUTCFullYear();
+      var mm = ('0'+(d.getUTCMonth()+1)).slice(-2);
+      var dd = ('0'+d.getUTCDate()).slice(-2);
+      return yyyy+'/'+mm+'/'+dd;
+    }
     return String(cell.v).replace(/[\u3000]/g,' ').trim();
   }
 
