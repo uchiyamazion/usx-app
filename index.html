@@ -309,10 +309,10 @@ var MEAS=[
   {key:'冷媒吸入ガス温度',label:'冷媒吸入ガス温度',unit:'℃',ref:'－5以上',c:true,g:'冷媒'},
   {key:'冷媒コイルガス温度1',label:'冷媒コイルガス温度１',unit:'℃',ref:'－15〜42',c:true,g:'冷媒'},
   {key:'冷媒コイルガス温度2',label:'冷媒コイルガス温度２',unit:'℃',ref:'－15〜42',c:true,g:'冷媒'},
-  {key:'ファン回転数',label:'ファン回転数',unit:'rpm',ref:'100〜830',c:true,g:'冷媒'},
+  {key:'ファン回転数',label:'ファン回転数',unit:'rpm',ref:'100〜900',c:true,g:'冷媒'},
   {key:'圧縮機運転周波数',label:'圧縮機運転周波数',unit:'Hz',ref:'0〜83',c:true,g:'冷媒'},
-  {key:'膨脹弁1開度',label:'膨脹弁１開度',unit:'パルス',ref:'0〜480',c:true,g:'冷媒'},
-  {key:'膨脹弁2開度',label:'膨脹弁２開度',unit:'パルス',ref:'0〜480',c:true,g:'冷媒'},
+  {key:'膨脹弁1開度',label:'膨脹弁１開度',unit:'パルス',ref:'0〜2000',c:true,g:'冷媒'},
+  {key:'膨脹弁2開度',label:'膨脹弁２開度',unit:'パルス',ref:'0〜2000',c:true,g:'冷媒'},
   {key:'高圧圧力異常',label:'高圧圧力異常',unit:'MPa',ref:'4.15以下',c:true,g:'安全'},
   {key:'絶縁抵抗',label:'主電動機絶縁抵抗',unit:'MΩ',ref:'10以上',c:true,g:'安全'},
   {key:'出荷時充填量',label:'出荷時充填量',unit:'kg',ref:'－',c:true,g:'充填'},
@@ -529,7 +529,8 @@ function buildList(b,recs){
   var groups={}, groupOrder=[];
   for(var i=0;i<recs.length;i++){
     var r=recs[i];
-    var siteName=(r.data&&r.data['現場名'])?r.data['現場名']:r.name;
+    var rawName=(r.data&&r.data['現場名'])?r.data['現場名']:r.name;
+    var siteName=rawName.replace(/[\s\u3000]*(殿|様|御中)[\s\u3000]*$/,'').trim();
     if(!groups[siteName]){groups[siteName]=[];groupOrder.push(siteName);}
     groups[siteName].push(r);
   }
