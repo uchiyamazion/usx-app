@@ -822,130 +822,346 @@ function importFromExcel(file) {
 }
 
 function doImportCore(wb, recSheets, res) {
-      var wsName = recSheets[0];
-      var ws = wb.Sheets[wsName];
+  try {
+    var wsName = recSheets[0];
+    var ws = wb.Sheets[wsName];
+    var data = flexParseSheet(ws);
 
-      var data = {};
-
-      // 基本情報
-      data['現場名']    = cellVal(ws, 'D2');
-      data['住所']      = cellVal(ws, 'D3');
-      data['作業日時']  = cellVal(ws, 'T3');
-      data['作業者']    = cellVal(ws, 'T4');
-      data['系統名']    = cellVal(ws, 'E5');
-      data['型式']      = cellVal(ws, 'F6');  // RUA-の右側
-      data['運転状態']  = cellVal(ws, 'E7');
-      data['連結台数']  = cellVal(ws, 'T7');
-      data['設置年月日']= cellVal(ws, 'E8');
-      data['冷媒種類']  = cellVal(ws, 'I8');
-      data['作成者']    = cellVal(ws, 'T70');
-      data['備考']      = cellVal(ws, 'A72');
-
-      // 設定温度（℃を除去）
-      var st = cellVal(ws, 'H7').replace('℃','').trim();
-      if (st) data['設定温度'] = parseFloat(st) || st;
-
-      // 作業区分（■が含まれるセルを判定）
-      var wt = {'試運転':'D4','定期点検':'F4','簡易点検':'H4','修理':'J4','整備':'L4','故障判定':'N4'};
-      Object.keys(wt).forEach(function(k){
-        var v = cellVal(ws, wt[k]);
-        if (v && v.indexOf('■') >= 0) data['作業区分'] = k;
-      });
-
-      // フロン区分
-      var ft = {'定期点検':'Q8','簡易点検':'T8'};
-      Object.keys(ft).forEach(function(k){
-        var v = cellVal(ws, ft[k]);
-        if (v && v.indexOf('■') >= 0) data['フロン区分'] = k;
-      });
-
-      // 熱源機データ（全シート合計最大12台）
-      var units = [];
-      recSheets.forEach(function(sName) {
-        var sws = wb.Sheets[sName];
-        for (var li = 0; li < IMPORT_UNIT_COLS.length; li++) {
-          var cols = IMPORT_UNIT_COLS[li];
-          var u = {};
-          var noVal = cellVal(sws, cols.no_val + '11');
-          if (!noVal) { units.push({}); continue; }
-          u['No'] = noVal;
-          u['UC製造番号'] = cellVal(sws, cols.info + '12');
-          u['冷却加熱']   = cellVal(sws, cols.info + '13');
-          u['製造年']     = cellVal(sws, cols.info + '14');
-          u['記録時間']   = cellVal(sws, cols.info + '49');
-
-          IMPORT_FIELD_ROWS.forEach(function(fr) {
-            var field = fr[0], row = fr[1], isCircuit = fr[2];
-            if (isCircuit) {
-              ['A','B','C','D'].forEach(function(c) {
-                var v = cellVal(sws, cols[c] + row);
-                if (v !== '') u[field + '_' + c] = parseFloat(v) || v;
-              });
-            } else {
-              var v = cellVal(sws, cols['A'] + row);
-              if (v !== '') u[field + '_A'] = parseFloat(v) || v;
-            }
-          });
-          units.push(u);
+    // 複数シートの場合は2枚目以降のユニットデータを追記
+    if (recSheets.length > 1) {
+      for (var si = 1; si < recSheets.length; si++) {
+        var d2 = flexParseSheet(wb.Sheets[recSheets[si]]);
+        if (d2['熱源機']) {
+          data['熱源機'] = (data['熱源機'] || []).concat(d2['熱源機']);
         }
-      });
-      data['熱源機'] = units;
+      }
+    }
 
-      // チェック結果
-      var CC = {
-        '圧縮機関係':{'異常音':'F50','異常振動':'H50','圧力不良':'K50','オイル量':'N50','異常過熱':'Q50'},
-        '凝縮器関係':{'汚れ':'F51','流量不足':'H51','ストレ詰り':'K51','風量不足':'N51'},
-        '蒸発器関係':{'汚れ':'F52','流量不足':'H52','ストレ詰り':'K52','風量不足':'N52'},
-        '送風機関係':{'異常音':'F53','異常振動':'H53','ショートサイクル':'K53'},
-        '冷媒配管系統部品関係':{'ストレーナ':'F54','四方弁':'H54','電磁弁':'K54','膨張弁':'N54'},
-        '電装品関係':{'センサー':'F55','リレー':'H55','トランス':'K55','制御基板':'N55','通信不具合':'Q55'},
-        '補機関係':{'ポンプ':'F56','圧力計':'H56','アキュムレータ':'K56'},
-        'その他':{'その他':'F57'}
-      };
-      var checks = {};
-      Object.keys(CC).forEach(function(grp) {
-        var items = CC[grp], sel = [];
-        Object.keys(items).forEach(function(item) {
-          var v = cellVal(ws, items[item]);
-          if (v && v.indexOf('■') >= 0) sel.push(item);
+    var units = data['熱源機'] || [];
+    clearFm();
+    restore(data);
+    currentRecordId = null;
+    setCurrentRecord(null);
+    var nonEmpty = units.filter(function(u){ return u['UC製造番号'] || u['No']; }).length;
+    var unitCount = Math.max(parseInt(data['連結台数']) || 0, nonEmpty, 1);
+    setCount(Math.min(unitCount, 12));
+    showTab('header');
+
+    res.style.background = '#f0fdf4';
+    res.style.border = '1px solid #86efac';
+    res.innerHTML = '✅ <strong>「' + (data['現場名'] || '不明') + '」</strong> を読み込みました<br>'
+      + '<small style="color:var(--g600);">' + recSheets.length + 'シート / ' + nonEmpty + '台分のデータを復元。新規記録として保存されます。</small>';
+    toast('Excelからインポートしました');
+  } catch(err) {
+    res.style.background = '#fee2e2';
+    res.style.border = '1px solid #fca5a5';
+    res.innerHTML = '❌ 読み込みエラー: ' + err.message;
+  }
+}
+
+// ラベルベースの柔軟なシートパーサー（テンプレート形式に依存しない）
+function flexParseSheet(ws) {
+  var data = {};
+
+  // 0-indexed row/col でセル値を取得
+  function cv(r, c) {
+    var addr = XLSX.utils.encode_cell({r:r, c:c});
+    var cell = ws[addr];
+    if (!cell || cell.v === null || cell.v === undefined) return '';
+    return String(cell.v).replace(/[\u3000]/g,' ').trim();
+  }
+
+  // 右方向に最初の非空セル値を取得
+  function rightVal(r, startC, maxSkip) {
+    for (var c = startC; c <= startC+(maxSkip||10); c++) {
+      var v = cv(r,c);
+      if (v) return v;
+    }
+    return '';
+  }
+
+  // 正規化（全角スペース・改行除去）
+  function norm(s){ return s.replace(/[\s\u3000]+/g,''); }
+
+  // ラベルを探す（行0-14、列0-6）
+  function findLabel(keyword, maxRow) {
+    var kn = norm(keyword);
+    for (var r = 0; r < (maxRow||14); r++) {
+      for (var c = 0; c < 7; c++) {
+        if (norm(cv(r,c)).indexOf(kn) >= 0) return {r:r,c:c};
+      }
+    }
+    return null;
+  }
+
+  // === 基本情報（ラベルを探して右の値を取得）===
+  var INFO = ['現場名','住所','系統名','型式','設置年月日','冷媒種類','連結台数','作業者','作成者','備考'];
+  INFO.forEach(function(key){
+    var pos = findLabel(key, 15);
+    if (pos) { var v = rightVal(pos.r, pos.c+1, 15); if (v) data[key] = v; }
+  });
+
+  // 作業日時（「作業日時」or「作業日」）
+  ['作業日時','作業日'].forEach(function(lbl){
+    if (!data['作業日時']) {
+      var pos = findLabel(lbl, 10);
+      if (pos) { var v = rightVal(pos.r, pos.c+1, 15); if (v) data['作業日時'] = v; }
+    }
+  });
+
+  // 運転状態 / 設定温度（同じ行に混在）
+  var stPos = findLabel('運転状態', 12);
+  if (stPos) {
+    var r = stPos.r;
+    for (var c = stPos.c+1; c <= stPos.c+15; c++) {
+      var v = cv(r,c);
+      if (!v || norm(v)==='/' ) continue;
+      if (v === '℃') continue;
+      var num = parseFloat(v);
+      if (!isNaN(num) && cv(r,c+1).indexOf('℃') >= 0) {
+        data['設定温度'] = num;
+      } else if (isNaN(num) && !data['運転状態'] && v.length < 10) {
+        data['運転状態'] = v;
+      }
+    }
+  }
+
+  // 作業区分（☑ or ■ を含む行をスキャン）
+  var kubunPos = findLabel('作業区分', 10);
+  if (kubunPos) {
+    var r = kubunPos.r;
+    var KUBUN = ['試運転','定期点検','簡易点検','点検','整備','故障診断','故障判定','修理','その他'];
+    for (var c = 0; c <= 20; c++) {
+      var v = cv(r,c);
+      if (v.indexOf('☑') >= 0 || v.indexOf('■') >= 0) {
+        KUBUN.forEach(function(k){ if(norm(v).indexOf(norm(k))>=0) data['作業区分']=k; });
+      }
+    }
+  }
+
+  // フロン区分
+  var fronPos = findLabel('フロン', 12);
+  if (fronPos) {
+    var r = fronPos.r;
+    for (var c = fronPos.c; c <= fronPos.c+10; c++) {
+      var v = cv(r,c);
+      if ((v.indexOf('☑')>=0||v.indexOf('■')>=0)) {
+        if (norm(v).indexOf('定期') >= 0) data['フロン区分'] = '定期点検';
+        if (norm(v).indexOf('簡易') >= 0) data['フロン区分'] = '簡易点検';
+      }
+    }
+  }
+
+  // === ユニット列の検出（A,B,C,D パターンを探す）===
+  var unitGroups = [];
+  var circuitRowIdx = -1;
+  for (var r = 5; r < 25; r++) {
+    var groups = [];
+    for (var c = 0; c <= 26; c++) {
+      if (cv(r,c)==='A' && cv(r,c+1)==='B' && cv(r,c+2)==='C' && cv(r,c+3)==='D') {
+        groups.push({A:c,B:c+1,C:c+2,D:c+3});
+        c += 3;
+      }
+    }
+    if (groups.length >= 1) { unitGroups = groups; circuitRowIdx = r; break; }
+  }
+
+  if (unitGroups.length === 0) return data;
+
+  // ユニット情報（回路行より前の行をスキャン）
+  var units = unitGroups.map(function(){ return {}; });
+  for (var r = Math.max(0, circuitRowIdx-8); r < circuitRowIdx; r++) {
+    var lbl = norm(cv(r,0));
+    for (var ui = 0; ui < unitGroups.length; ui++) {
+      var ug = unitGroups[ui], v = cv(r, ug.A);
+      if (!v) continue;
+      if (lbl.indexOf('UC製造番号') >= 0 || lbl.indexOf('製造番号') >= 0) units[ui]['UC製造番号'] = v;
+      if (lbl.indexOf('冷却') >= 0) units[ui]['冷却加熱'] = v;
+      if (lbl === '製造年') units[ui]['製造年'] = parseFloat(v) || v;
+      if (lbl.indexOf('記録時間') >= 0) units[ui]['記録時間'] = v;
+    }
+    // No.（ユニット名: 回路行の2行前あたりにあることが多い）
+    for (var c = 0; c <= 26; c++) {
+      var v2 = cv(r,c);
+      if (v2 && norm(v2) === 'NO.') {
+        // 右にユニット名
+        for (var ui = 0; ui < unitGroups.length; ui++) {
+          var nm = cv(r, unitGroups[ui].A);
+          if (nm) units[ui]['No'] = units[ui]['No'] || nm;
+        }
+      }
+    }
+  }
+
+  // === 測定値の読み取り（列A/Eのラベルを探す）===
+  var MEAS = [
+    {keys:['圧縮機運転時間'],           field:'運転時間',          c:true},
+    {keys:['圧縮機運転回数'],           field:'運転回数',          c:true},
+    {keys:['冷温水入口圧力','冷（温）水入口圧力'], field:'冷温水入口圧力', c:false},
+    {keys:['冷温水出口圧力','冷（温）水出口圧力'], field:'冷温水出口圧力', c:false},
+    {keys:['換算流量'],                 field:'換算流量',          c:false},
+    {keys:['冷温水入口温度','冷（温）水入口温度'], field:'冷温水入口温度', c:false},
+    {keys:['冷温水中間温度','冷（温）水中間温度'], field:'冷温水中間温度', c:false},
+    {keys:['冷温水出口温度','冷（温）水出口温度'], field:'冷温水出口温度', c:false},
+    {keys:['外気温度'],                 field:'外気温度',          c:false},
+    {keys:['冷媒高圧圧力'],             field:'冷媒高圧圧力',      c:true},
+    {keys:['冷媒低圧圧力'],             field:'冷媒低圧圧力',      c:true},
+    {keys:['冷媒吐出ガス温度'],         field:'冷媒吐出ガス温度',  c:true},
+    {keys:['冷媒吸入ガス温度'],         field:'冷媒吸入ガス温度',  c:true},
+    {keys:['コイルガス温度1','冷媒コイルガス温度1'], field:'冷媒コイルガス温度1', c:true},
+    {keys:['コイルガス温度2','冷媒コイルガス温度2'], field:'冷媒コイルガス温度2', c:true},
+    {keys:['ファン回転数'],             field:'ファン回転数',      c:true},
+    {keys:['圧縮機運転周波数'],         field:'圧縮機運転周波数',  c:true},
+    {keys:['膨脹弁１','膨張弁１','膨脹弁1'], field:'膨脹弁1開度',  c:true},
+    {keys:['膨脹弁２','膨張弁２','膨脹弁2'], field:'膨脹弁2開度',  c:true},
+    {keys:['高圧圧力異常'],             field:'高圧圧力異常',      c:true},
+    {keys:['主電動機','絶縁抵抗'],      field:'絶縫抵抗',          c:true},
+    {keys:['出荷時充填量'],             field:'出荷時充填量',      c:true},
+    {keys:['初期（追加）充填量','初期充填量'], field:'初期充填量', c:true},
+    {keys:['総充填量'],                 field:'総充填量',          c:true},
+  ];
+
+  var elecIRow = -1, elecVRow = -1;
+  for (var r = circuitRowIdx+1; r < 80; r++) {
+    var lbl0 = norm(cv(r,0)), lbl4 = norm(cv(r,4)||cv(r,3)||cv(r,5));
+
+    // 圧縮機電流（R/S/T相の3行）
+    if (lbl0.indexOf('圧縮機電流') >= 0) elecIRow = r;
+    if (elecIRow >= 0 && r >= elecIRow && r <= elecIRow+2) {
+      var sub = '';
+      if (r === elecIRow || lbl4.indexOf('R') >= 0) sub = 'R';
+      else if (lbl4.indexOf('S') >= 0) sub = 'S';
+      else if (lbl4.indexOf('T') >= 0) sub = 'T';
+      if (sub) {
+        for (var ui = 0; ui < unitGroups.length; ui++) {
+          var ug = unitGroups[ui];
+          ['A','B','C','D'].forEach(function(circ){
+            var v = cv(r, ug[circ]);
+            if (v !== '') units[ui]['圧縮機電流_'+sub+'_'+circ] = parseFloat(v)||v;
+          });
+        }
+        continue;
+      }
+    }
+
+    // 圧縮機電圧（RS/ST/TR相の3行）
+    if (lbl0.indexOf('圧縮機電圧') >= 0) elecVRow = r;
+    if (elecVRow >= 0 && r >= elecVRow && r <= elecVRow+2) {
+      var sub = '';
+      if (r === elecVRow || lbl4.indexOf('RS') >= 0 || lbl4.indexOf('R-S') >= 0) sub = 'RS';
+      else if (lbl4.indexOf('ST') >= 0 || lbl4.indexOf('S-T') >= 0) sub = 'ST';
+      else if (lbl4.indexOf('TR') >= 0 || lbl4.indexOf('T-R') >= 0) sub = 'TR';
+      if (sub) {
+        for (var ui = 0; ui < unitGroups.length; ui++) {
+          var v = cv(r, unitGroups[ui].A);
+          if (v !== '') units[ui]['圧縮機電圧_'+sub+'_A'] = parseFloat(v)||v;
+        }
+        continue;
+      }
+    }
+
+    // チェック結果（☑/■を含むセルを全カラムスキャン）
+    if (lbl0.indexOf('チェック結果') >= 0) continue;
+
+    // その他の測定値
+    var matched = null;
+    MEAS.forEach(function(m){
+      if (matched) return;
+      m.keys.forEach(function(key){
+        if (!matched && lbl0.indexOf(norm(key)) >= 0) matched = m;
+      });
+    });
+    if (!matched) continue;
+
+    for (var ui = 0; ui < unitGroups.length; ui++) {
+      var ug = unitGroups[ui];
+      if (matched.c) {
+        ['A','B','C','D'].forEach(function(circ){
+          var v = cv(r, ug[circ]);
+          if (v !== '') units[ui][matched.field+'_'+circ] = parseFloat(v)||v;
         });
-        if (sel.length > 0) checks[grp] = sel;
-      });
-      data['チェック結果'] = checks;
+      } else {
+        var v = cv(r, ug.A);
+        if (v !== '') units[ui][matched.field+'_A'] = parseFloat(v)||v;
+      }
+    }
+  }
+  data['熱源機'] = units;
 
-      // 試運転事前点検
-      var PM = {
-        '電装品結線状態確認':['F59','H59'],'通信線アドレス設定':['F60','H60'],
-        '熱源機外観点検':['F61','H61'],'内蔵ポンプ動作確認':['F62','H62'],
-        '水配管フラッシング':['Q59','T59'],'12時間前通電':['Q60','T60'],
-        '冷媒漏洩点検':['Q61','T61'],'インターロック動作確認':['Q62','T62']
-      };
-      var pre = {};
-      Object.keys(PM).forEach(function(item) {
-        var okCell = cellVal(ws, PM[item][0]);
-        var ngCell = cellVal(ws, PM[item][1]);
-        if (okCell && okCell.indexOf('■') >= 0) pre[item] = 'OK';
-        else if (ngCell && ngCell.indexOf('■') >= 0) pre[item] = 'NG';
-      });
-      data['試運転事前点検'] = pre;
+  // === チェック結果（☑/■を行スキャンで抽出）===
+  var CHK_GRP = {
+    '圧縮機関係':['異常音','異常振動','圧力不足','圧力不良','オイル量','異常過熱','異常加熱'],
+    '凝縮器関係':['汚れ','流量不足','Yスト詰り','ストレ詰り','風量不足'],
+    '蒸発器関係':['汚れ','流量不足','Yスト詰り','ストレ詰り','風量不足'],
+    '送風機関係':['異常音','異常振動','ショートサイクル'],
+    '冷媒配管系統部品関係':['四方弁','電磁弁','膨張弁','ストレーナ'],
+    '電装品関係':['センサ','リレー','トランス','制御基板','通信不具合'],
+    '補機関係':['ポンプ','圧力計','アキュームレータ','アキュムレータ'],
+    'その他':['その他']
+  };
+  var grpRows = {}; // グループ名→行インデックス
+  var checks = {};
+  for (var r = 0; r < 80; r++) {
+    var lbl = norm(cv(r,0));
+    Object.keys(CHK_GRP).forEach(function(grp){
+      if (!grpRows[grp] && norm(grp).length > 3 && lbl.indexOf(norm(grp).slice(0,4)) >= 0) grpRows[grp] = r;
+    });
+  }
+  Object.keys(grpRows).forEach(function(grp){
+    var r = grpRows[grp], sel = [];
+    for (var c = 0; c <= 25; c++) {
+      var v = cv(r,c);
+      if (v.indexOf('☑')>=0 || v.indexOf('■')>=0) {
+        CHK_GRP[grp].forEach(function(item){
+          if (norm(v).indexOf(norm(item)) >= 0) sel.push(item);
+        });
+      }
+    }
+    if (sel.length > 0) checks[grp] = sel;
+  });
+  data['チェック結果'] = checks;
 
-      // フォームに反映
-      clearFm();
-      restore(data);
-      currentRecordId = null;
-      setCurrentRecord(null);
-      // 連結台数: セル値 or 実際に読めた台数（Noがある台数）の大きい方
-      var nonEmpty = units.filter(function(u){ return u['No']; }).length;
-      var unitCount = Math.max(parseInt(data['連結台数']) || 0, nonEmpty, 1);
-      setCount(Math.min(unitCount, 12));
-      showTab('header');
+  // === 試運転事前点検（☑OK/☑NGを含む行をスキャン）===
+  var PC_ITEMS = ['電装品','通信線','熱源機外観','内蔵ポンプ','水配管フラッシング','12時間前通電','冷媒漏洩','インターロック'];
+  var PC_MAP = {
+    '電装品':'電装品結線状態確認','通信線':'通信線アドレス設定',
+    '熱源機外観':'熱源機外観点検','内蔵ポンプ':'内蔵ポンプ動作確認',
+    '水配管':'水配管フラッシング','12時間':'12時間前通電',
+    '冷媒漏洩':'冷媒漏洩点検','インターロック':'インターロック動作確認'
+  };
+  var pre = {};
+  for (var r = 0; r < 80; r++) {
+    var lbl = norm(cv(r,0));
+    Object.keys(PC_MAP).forEach(function(key){
+      if (lbl.indexOf(key) >= 0) {
+        for (var c = 0; c <= 25; c++) {
+          var v = cv(r,c);
+          if ((v.indexOf('☑')>=0||v.indexOf('■')>=0)) {
+            if (norm(v).indexOf('OK')>=0) pre[PC_MAP[key]] = 'OK';
+            if (norm(v).indexOf('NG')>=0) pre[PC_MAP[key]] = 'NG';
+          }
+        }
+      }
+    });
+    // 右半分に別の点検項目が並んでいるケース（同一行）
+    Object.keys(PC_MAP).forEach(function(key){
+      for (var c = 8; c <= 25; c++) {
+        var v = cv(r,c);
+        if (norm(v).indexOf(key) >= 0) {
+          for (var c2 = c; c2 <= c+8; c2++) {
+            var v2 = cv(r,c2);
+            if ((v2.indexOf('☑')>=0||v2.indexOf('■')>=0)) {
+              if (norm(v2).indexOf('OK')>=0) pre[PC_MAP[key]] = 'OK';
+              if (norm(v2).indexOf('NG')>=0) pre[PC_MAP[key]] = 'NG';
+            }
+          }
+        }
+      }
+    });
+  }
+  data['試運転事前点検'] = pre;
 
-      res.style.background = '#f0fdf4';
-      res.style.border = '1px solid #86efac';
-      res.innerHTML = '✅ <strong>「' + (data['現場名'] || '不明') + '」</strong> を読み込みました<br>'
-        + '<small style="color:var(--g600);">' + recSheets.length + 'シート / ' + nonEmpty + '台分のデータを復元。新規記録として保存されます。</small>';
-      toast('Excelからインポートしました');
-
+  return data;
 }
 
 // ファイル選択イベント
