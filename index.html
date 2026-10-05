@@ -548,10 +548,12 @@ function buildList(b,recs){
       var ts=r.ts||fmtJST(r.created_at)||'';
       var sys=(r.data&&r.data['系統名'])?r.data['系統名']:'';
       var kubun=(r.data&&r.data['作業区分'])?r.data['作業区分']:'';
+      var wd=String(r.work_date||(r.data&&r.data['作業日時'])||'').replace(/-/g,'/').slice(0,10);
       h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1.5px solid var(--g200);border-radius:9px;margin-bottom:6px;margin-left:8px;background:#fff;">';
       h+='<div style="flex:1;min-width:0;">';
       h+='<div style="font-size:13px;font-weight:700;">'+(sys||r.name)+(kubun?' <span style="font-size:11px;color:var(--blue);font-weight:400;">['+kubun+']</span>':'')+'</div>';
-      h+='<div style="font-size:11px;color:var(--g600);">'+ts+'</div>';
+      if(wd)h+='<div style="font-size:12px;color:var(--g800,#1f2937);">点検日: '+wd+'</div>';
+      h+='<div style="font-size:11px;color:var(--g600);">保存: '+ts+'</div>';
       h+='</div>';
       h+='<div style="display:flex;gap:6px;margin-left:8px;">';
       h+='<button class="nbtn nback" style="padding:6px 10px;font-size:12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;" data-ref-load="'+r.id+'">引用</button>';

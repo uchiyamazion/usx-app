@@ -113,12 +113,14 @@ function saveRecord(record) {
   return id;
 }
 
-/** 記録一覧を新しい順に返す（id, name, created_atのみ。dataは含めない） */
+/** 記録一覧を新しい順に返す（id, name, created_at, work_date。dataは含めない） */
 function getRecords() {
   const ss = getDbSpreadsheet_();
   const sheet = ss.getSheetByName(RECORDS_SHEET_NAME);
   const list = sheetToObjects_(sheet).map(function (r) {
-    return { id: r.id, name: r.name, created_at: r.created_at };
+    var workDate = '';
+    try { workDate = (JSON.parse(r.data || '{}')['作業日時']) || ''; } catch (e) {}
+    return { id: r.id, name: r.name, created_at: r.created_at, work_date: String(workDate) };
   });
   list.sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
   return list;
