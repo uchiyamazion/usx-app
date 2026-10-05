@@ -447,6 +447,12 @@ function collect(){
 
 function updPrev(){var el=document.getElementById('json-preview');if(el)el.textContent=JSON.stringify(collect(),null,2);}
 
+function excelFileName(data){
+  var d=String((data&&data['作業日時'])||'').replace(/\//g,'-').slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) d=new Date().toISOString().slice(0,10);
+  var site=String((data&&data['現場名'])||'').replace(/[\\\/:*?"<>|\s\u3000]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'現場';
+  return d+'_'+site+'.xlsx';
+}
 function genExcel(){
   var btn=document.getElementById('btn-excel');
   if(btn){btn.disabled=true;btn.textContent='生成中...';}
@@ -454,7 +460,7 @@ function genExcel(){
   .then(function(res){
     var blob=b64toBlob(res.base64, res.mimeType);
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=res.filename||('運転記録表_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    a.download=excelFileName(collect());
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     toast('Excelをダウンロードしました');
   }).catch(function(e){toast('エラー: '+e.message);});
@@ -1396,7 +1402,7 @@ function genExcelWithPhotos() {
     var blob = b64toBlob(res.base64, res.mimeType);
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = res.filename || ('運転記録表_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    a.download = excelFileName(collect());
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     toast('Excelをダウンロードしました');
   }).catch(function(e){ toast('エラー: ' + e.message); });
