@@ -1170,7 +1170,7 @@ function parseRef(ref) {
   if (!ref || ref === '－' || ref.indexOf('注') >= 0) return null;
   // 全角数字・マイナスを半角に変換
   var s = ref.replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0)-65248); })
-             .replace(/－/g, '-').replace(/〜/g, '~');
+             .replace(/－/g, '-').replace(/[〜～]/g, '~');
   var m;
   m = s.match(/^(-?[\d.]+)~(-?[\d.]+)$/);
   if (m) return {min: parseFloat(m[1]), max: parseFloat(m[2])};
