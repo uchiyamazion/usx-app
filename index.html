@@ -97,6 +97,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <button class="tbtn" data-tab="units">運転記録</button>
   <button class="tbtn" data-tab="checks">チェック</button>
   <button class="tbtn" data-tab="precheck">試運転点検</button>
+  <button class="tbtn" data-tab="report">📄 報告書</button>
   <button class="tbtn" data-tab="export">Excel出力</button>
   <button class="tbtn" data-tab="list">記録一覧</button>
   <button class="tbtn" data-tab="photos">📷 写真</button>
@@ -183,6 +184,27 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <div class="card"><div class="ch">備考</div><div class="cb"><textarea id="f-備考" rows="3" placeholder="備考・特記事項"></textarea></div></div>
   <div class="navrow">
     <button class="nbtn nback" data-tab="checks">← 戻る</button>
+    <button class="nbtn nnext" data-tab="report">次へ: 報告書 →</button>
+  </div>
+</div>
+
+<div class="pg" id="pg-report">
+  <div class="card"><div class="ch">報告書（表紙・報告書の内容）</div><div class="cb">
+    <div class="fg" style="margin-bottom:12px;">
+      <div class="fl"><label>宛先（御中まで入力）</label><input type="text" id="f-報告_宛先" placeholder="例: 東テク北海道株式会社 御中"></div>
+      <div class="fl"><label>件名</label><input type="text" id="f-報告_件名" placeholder="例: 空冷モジュールチラー定期点検作業"></div>
+    </div>
+    <div class="fl" style="max-width:220px;margin-bottom:12px;"><label>提出日（表紙の日付）</label><input type="date" id="f-報告_提出日"></div>
+    <div class="fl" style="margin-bottom:12px;"><label>作業内容（1行に1項目）</label>
+      <textarea id="f-報告_作業内容" rows="9" placeholder="電装品点検&#10;冷媒ガス漏洩点検"></textarea>
+      <div style="margin-top:6px;"><button class="nbtn nback" type="button" id="btn-report-default" style="padding:6px 12px;font-size:12px;">定型項目に戻す</button></div>
+    </div>
+    <div class="fl"><label>作業結果・所見（1行ずつ。※で始めると所見の扱い。所見なしならそのまま）</label>
+      <textarea id="f-報告_作業結果" rows="9" placeholder="上記の作業結果、チラーが正常に動作していることを確認致しました。&#10;※空気熱交換器の汚れを確認。コイル洗浄をご検討ください。"></textarea>
+    </div>
+  </div></div>
+  <div class="navrow">
+    <button class="nbtn nback" data-tab="precheck">← 戻る</button>
     <button class="nbtn nnext" data-tab="export">Excel出力へ →</button>
   </div>
 </div>
@@ -323,7 +345,7 @@ var GL={基本:'基本運転データ',冷温水:'冷(温)水系統',電気:'電
 var CR=['A','B','C','D'];
 var CG={'圧縮機関係':['異常音','異常振動','圧力不良','オイル量','異常過熱'],'凝縮器関係':['汚れ','流量不足','Yスト詰り','風量不足'],'蒸発器関係':['汚れ','流量不足','Yスト詰り','風量不足'],'送風機関係':['異常音','異常振動','ショートサイクル'],'冷媒配管系統部品関係':['ストレーナ','四方弁','電磁弁','膨張弁'],'電装品関係':['センサー','リレー','トランス','制御基板','通信不具合'],'補機関係':['ポンプ','圧力計','アキュムレータ'],'その他':['その他']};
 var PC=['電装品結線状態確認','通信線アドレス設定','熱源機外観点検','内蔵ポンプ動作確認','水配管フラッシング','12時間前通電','冷媒漏洩点検','インターロック動作確認'];
-var TABS=['header','units','checks','precheck','export','list','photos'];
+var TABS=['header','units','checks','precheck','report','export','list','photos'];
 var pst={},pre={},uc=1,cu=1;
 
 function showTab(name){
@@ -414,9 +436,18 @@ function buildPrecheck(){
 
 function gv(id){var e=document.getElementById(id);return e?e.value:'';}
 
+// 入力欄と対応するデータキー（collect / clearFm / restore 共通）
+var FIELDS=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式','報告_宛先','報告_件名','報告_提出日','報告_作業内容','報告_作業結果'];
+var DEFAULT_WORK=['電装品点検','各端子部増し締め','冷媒ガス漏洩点検','機内簡易清掃','絶縁抵抗測定','保護装置作動確認（高圧スイッチ）','運転データ測定','遠方確認'].join('\n');
+var DEFAULT_RESULT='上記の作業結果、チラーが正常に動作していることを確認致しました。';
+function setReportDefaults(){
+  var a=document.getElementById('f-報告_作業内容');if(a)a.value=DEFAULT_WORK;
+  var b=document.getElementById('f-報告_作業結果');if(b)b.value=DEFAULT_RESULT;
+}
+
 function collect(){
   var d={};
-  var fs=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式'];
+  var fs=FIELDS;
   for(var i=0;i<fs.length;i++){var v=gv('f-'+fs[i]);if(v)d[fs[i]]=v;}
   if(pst['kubun'])d['作業区分']=pst['kubun'];
   if(pst['fron'])d['フロン区分']=pst['fron'];
@@ -602,8 +633,9 @@ function delRec(id){
 }
 
 function clearFm(){
-  var fs=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式'];
+  var fs=FIELDS;
   for(var i=0;i<fs.length;i++){var e=document.getElementById('f-'+fs[i]);if(e)e.value='';}
+  setReportDefaults();
   pst={};pre={};
   var ps=document.querySelectorAll('.pill.on');for(var i=0;i<ps.length;i++)ps[i].classList.remove('on');
   var cs=document.querySelectorAll('.pill.ck.on');for(var i=0;i<cs.length;i++)cs[i].classList.remove('on');
@@ -626,8 +658,10 @@ function toDateInput(v){
   return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
 }
 function restore(data){
-  if(data['作業日時']!==undefined){data=Object.assign({},data);data['作業日時']=toDateInput(data['作業日時']);}
-  var fs=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式'];
+  data=Object.assign({},data);
+  if(data['作業日時']!==undefined) data['作業日時']=toDateInput(data['作業日時']);
+  if(data['報告_提出日']!==undefined) data['報告_提出日']=toDateInput(data['報告_提出日']);
+  var fs=FIELDS;
   for(var i=0;i<fs.length;i++){if(data[fs[i]]!==undefined){var e=document.getElementById('f-'+fs[i]);if(e)e.value=data[fs[i]];}}
   if(data['作業区分']){var p=document.querySelector('.pill[data-group="kubun"][data-val="'+data['作業区分']+'"]');if(p){p.classList.add('on');pst['kubun']=data['作業区分'];}}
   if(data['フロン区分']){var p=document.querySelector('.pill[data-group="fron"][data-val="'+data['フロン区分']+'"]');if(p){p.classList.add('on');pst['fron']=data['フロン区分'];}}
@@ -799,8 +833,13 @@ function importFromExcel(file) {
         var nl = n.toLowerCase();
         return EXCLUDE_WORDS.some(function(w){ return nl.indexOf(w) >= 0; });
       }
+      function isHiddenSheet(n) {
+        var ss = (wb.Workbook && wb.Workbook.Sheets) || [];
+        for (var i = 0; i < ss.length; i++) { if (ss[i].name === n) return !!ss[i].Hidden; }
+        return false;
+      }
       function isRecordSheet(n) {
-        if (isExcluded(n)) return false;
+        if (isExcluded(n) || isHiddenSheet(n)) return false;
         // 「号機」は複数シートで1系統 → まとめて読む
         if (n.indexOf('号機') >= 0) return true;
         // 「系統」含む or 英数字・ハイフン系のシート名はD2+H11で判定
@@ -836,6 +875,116 @@ function importFromExcel(file) {
   reader.readAsArrayBuffer(file);
 }
 
+// ===== 表紙・報告書シートの取り込み（宛先・件名・提出日・作業内容・作業結果） =====
+function parseReportInfo(wb) {
+  var out = {};
+  function cellText(ws, r, c) {
+    var cell = ws[XLSX.utils.encode_cell({r:r, c:c})];
+    if (!cell || cell.v === null || cell.v === undefined) return '';
+    if (cell.w && /\d{4}[\/\-年]\d{1,2}[\/\-月]\d{1,2}/.test(cell.w)) return cell.w.trim();
+    if (cell.t === 'n' && cell.v > 25000 && cell.v < 60000) {
+      var d = new Date(Math.round((cell.v - 25569) * 86400 * 1000));
+      return d.getUTCFullYear()+'/'+('0'+(d.getUTCMonth()+1)).slice(-2)+'/'+('0'+d.getUTCDate()).slice(-2);
+    }
+    return String(cell.v).replace(/\u3000/g,' ').replace(/\s+/g,' ').trim();
+  }
+  function maxRow(ws) { return ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']).e.r : 0; }
+  function nrm(t) { return String(t).replace(/[\s\u3000]+/g,''); }
+
+  var coverName = wb.SheetNames.filter(function(n){ return n.indexOf('表紙') >= 0; })[0];
+  var repName = wb.SheetNames.filter(function(n){ return n.indexOf('報告書') >= 0 && n.indexOf('写真') < 0; })[0];
+  var cover = coverName ? wb.Sheets[coverName] : null;
+  var rep = repName ? wb.Sheets[repName] : null;
+
+  // 宛先: 「御中」を含むセル（左側の列のみ。右側の顧客リストは除外）
+  [cover, rep].forEach(function(ws){
+    if (out['報告_宛先'] || !ws) return;
+    for (var r = 0; r <= Math.min(maxRow(ws), 14) && !out['報告_宛先']; r++) {
+      for (var c = 0; c < 6; c++) {
+        var t = cellText(ws, r, c);
+        if (t && t.indexOf('御中') >= 0) { out['報告_宛先'] = t; break; }
+      }
+    }
+  });
+
+  // 提出日: 表紙の最初の日付セル
+  if (cover) {
+    for (var r = 0; r <= maxRow(cover) && !out['報告_提出日']; r++) {
+      for (var c = 0; c < 8; c++) {
+        var t = cellText(cover, r, c);
+        if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(t) || /^\d{4}年\d{1,2}月\d{1,2}日$/.test(t)) { out['報告_提出日'] = t; break; }
+      }
+    }
+  }
+
+  if (!rep) return out;
+  var last = maxRow(rep);
+  function findRow(word, from) {
+    for (var r = from || 0; r <= last; r++) {
+      for (var c = 0; c < 3; c++) {
+        if (nrm(cellText(rep, r, c)).indexOf(word) === 0) return r;
+      }
+    }
+    return -1;
+  }
+  var rWork = findRow('作業内容');
+  var rRes = findRow('作業結果', rWork < 0 ? 0 : rWork);
+  var rNote = findRow('備考', rRes < 0 ? 0 : rRes);
+
+  // 件名: 表紙の「件名」ラベルの下の値。「…報告書」のような表題なら、作業内容の見出し行(◇)を使う
+  var subj = '';
+  if (cover) {
+    for (var r = 0; r <= Math.min(maxRow(cover), 40) && !subj; r++) {
+      for (var c = 0; c < 6; c++) {
+        if (nrm(cellText(cover, r, c)) === '件名') {
+          for (var k = 1; k <= 3 && !subj; k++) {
+            for (var cc = 0; cc < 6; cc++) { var v = cellText(cover, r + k, cc); if (v) { subj = nrm(v); break; } }
+          }
+        }
+      }
+    }
+  }
+  var heading = '';
+  if (rWork >= 0) {
+    for (var r = rWork; r < (rRes < 0 ? last : rRes) && !heading; r++) {
+      if (cellText(rep, r, 2) === '◇') {
+        var parts = [];
+        for (var c = 3; c <= 12; c++) { var v = cellText(rep, r, c); if (v) parts.push(v); }
+        heading = parts.join('').replace(/\s+/g,'');
+      }
+    }
+  }
+  if (!subj || /報告書$/.test(subj)) subj = heading || subj;
+  if (subj) out['報告_件名'] = subj;
+
+  // 作業内容: 作業内容〜作業結果の間で、C列が「・」「1．」等の行のD列
+  if (rWork >= 0) {
+    var items = [];
+    for (var r = rWork; r < (rRes < 0 ? last : rRes); r++) {
+      var mk = cellText(rep, r, 2), tx = cellText(rep, r, 3);
+      if (tx && /^(・|･|\d+[．.]?)$/.test(mk)) items.push(tx);
+    }
+    if (items.length) out['報告_作業内容'] = items.join('\n');
+  }
+
+  // 作業結果: 作業結果〜備考の間の行（C〜M列。右側の説明欄は除外）
+  if (rRes >= 0) {
+    var lines = [];
+    for (var r = rRes + 1; r < (rNote < 0 ? last + 1 : rNote); r++) {
+      var cells = [];
+      for (var c = 2; c <= 12; c++) { var v = cellText(rep, r, c); if (v) cells.push(v); }
+      if (!cells.length) continue;
+      var line = cells[0];
+      if (/^(◇|※|・|･)$/.test(cells[0])) line = '※' === cells[0] ? '※' + cells.slice(1).join(' ') : cells.slice(1).join(' ');
+      else line = cells.join(' ');
+      line = line.trim();
+      if (line) lines.push(line);
+    }
+    if (lines.length) out['報告_作業結果'] = lines.join('\n');
+  }
+  return out;
+}
+
 function doImportCore(wb, recSheets, res) {
   try {
     var wsName = recSheets[0];
@@ -851,6 +1000,10 @@ function doImportCore(wb, recSheets, res) {
         }
       }
     }
+
+    var rp = {};
+    try { rp = parseReportInfo(wb); } catch (e) { rp = {}; }
+    Object.keys(rp).forEach(function(k){ if (rp[k]) data[k] = rp[k]; });
 
     var units = data['熱源機'] || [];
     clearFm();
@@ -1246,6 +1399,8 @@ function doRefRestore(data, name) {
   var dd = ('0'+today.getDate()).slice(-2);
   var e = document.getElementById('f-作業日時');
   if (e) e.value = yyyy + '-' + mm + '-' + dd;
+  var e2 = document.getElementById('f-報告_提出日');
+  if (e2) e2.value = yyyy + '-' + mm + '-' + dd;
   // 新規として扱う（idリセット）
   currentRecordId = null;
   setCurrentRecord(null);
@@ -1420,6 +1575,9 @@ function genExcelWithPhotos() {
 window.addEventListener('load',function(){
   for(var i=0;i<TABS.length;i++){var pg=document.getElementById('pg-'+TABS[i]);if(pg)pg.style.display=(TABS[i]==='header')?'block':'none';}
   buildPanels();setCount(1);buildChecks();buildPrecheck();
+  setReportDefaults();
+  var rdb=document.getElementById('btn-report-default');
+  if(rdb)rdb.addEventListener('click',function(){var a=document.getElementById('f-報告_作業内容');if(a)a.value=DEFAULT_WORK;toast('作業内容を定型項目に戻しました');});
   // Excelインポートのファイル選択・ドロップ
   var fi=document.getElementById('import-file');
   if(fi)fi.addEventListener('change',function(e){if(e.target.files[0])importFromExcel(e.target.files[0]);});
