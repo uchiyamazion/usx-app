@@ -224,6 +224,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div class="exbox">
       <h3>運転記録表を Excel に出力</h3>
       <p>ボタンを押すだけで書式付きExcelがダウンロードされます。</p>
+      <label style="display:block;margin:6px 0 10px;font-size:13px;font-weight:700;"><input type="checkbox" id="chk-report" checked style="width:auto;margin-right:6px;">表紙・報告書も付ける（報告書タブの内容）</label>
       <button class="gbtn" id="btn-excel" style="margin:4px;">Excel出力</button>
       <button class="gbtn" id="btn-excel-photo" style="margin:4px;background:#7c3aed;">📷 写真付きで出力</button>
     </div>
@@ -478,6 +479,7 @@ function collect(){
 
 function updPrev(){var el=document.getElementById('json-preview');if(el)el.textContent=JSON.stringify(collect(),null,2);}
 
+function withReportChecked(){var c=document.getElementById('chk-report');return !c||c.checked;}
 function excelFileName(data){
   var d=String((data&&data['作業日時'])||'').replace(/\//g,'-').slice(0,10);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) d=new Date().toISOString().slice(0,10);
@@ -487,13 +489,13 @@ function excelFileName(data){
 function genExcel(){
   var btn=document.getElementById('btn-excel');
   if(btn){btn.disabled=true;btn.textContent='生成中...';}
-  apiCall('generateExcel', {data: collect()})
+  apiCall('generateExcel', {data: collect(), withReport: withReportChecked()})
   .then(function(res){
     var blob=b64toBlob(res.base64, res.mimeType);
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download=excelFileName(collect());
     document.body.appendChild(a);a.click();document.body.removeChild(a);
-    toast('Excelをダウンロードしました');
+    toast(res.warning ? ('Excelをダウンロードしました（'+res.warning+'）') : 'Excelをダウンロードしました');
   }).catch(function(e){toast('エラー: '+e.message);});
   setTimeout(function(){if(btn){btn.disabled=false;btn.textContent='Excel出力';}},4000);
 }
@@ -1560,14 +1562,14 @@ function deletePhoto(id) {
 function genExcelWithPhotos() {
   var btn = document.getElementById('btn-excel-photo');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 生成中...'; }
-  apiCall('generateExcelWithPhotos', {data: collect(), recordId: currentRecordId || ''})
+  apiCall('generateExcelWithPhotos', {data: collect(), recordId: currentRecordId || '', withReport: withReportChecked()})
   .then(function(res){
     var blob = b64toBlob(res.base64, res.mimeType);
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = excelFileName(collect());
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    toast('Excelをダウンロードしました');
+    toast(res.warning ? ('Excelをダウンロードしました（'+res.warning+'）') : 'Excelをダウンロードしました');
   }).catch(function(e){ toast('エラー: ' + e.message); });
   setTimeout(function(){ if(btn){btn.disabled=false;btn.textContent='📷 写真付きで出力';} }, 5000);
 }

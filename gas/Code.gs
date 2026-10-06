@@ -67,10 +67,10 @@ function doPost(e) {
       }
 
       case 'generateExcel':
-        return jsonOutput_(generateOperationExcel_(payload.data, null));
+        return jsonOutput_(generateOperationExcel_(payload.data, null, payload.withReport));
 
       case 'generateExcelWithPhotos':
-        return jsonOutput_(generateOperationExcel_(payload.data, payload.recordId));
+        return jsonOutput_(generateOperationExcel_(payload.data, payload.recordId, payload.withReport));
 
       default:
         return jsonOutput_({ error: '不明なactionです: ' + action });
@@ -98,7 +98,7 @@ function dataUrlToBlob_(dataUrl) {
  * recordId が渡された場合のみ、DBに紐づく写真を取得してシートを追加する
  * （server.pyのgenerate_with_photosと同じ「同一ファイルに結合」方式）。
  */
-function generateOperationExcel_(data, recordId) {
+function generateOperationExcel_(data, recordId, withReport) {
   var props = PropertiesService.getScriptProperties();
   var opTemplateId = props.getProperty('OPERATION_TEMPLATE_SHEET_ID');
   var photoTemplateId = props.getProperty('PHOTO_TEMPLATE_SHEET_ID');
@@ -118,6 +118,17 @@ function generateOperationExcel_(data, recordId) {
   [[0, 4], [4, 8], [8, 12]].forEach(function (range, idx) {
     if (idx < sheets.length) writeOperationRecordSheet(sheets[idx], data || {}, range[0], range[1]);
   });
+
+  // 表紙・報告書シートを先頭に追加する（フロントで「表紙・報告書も付ける」が選ばれている場合のみ）
+  var warning = '';
+  if (withReport) {
+    var reportTemplateId = props.getProperty('REPORT_TEMPLATE_SHEET_ID');
+    if (reportTemplateId) {
+      addReportSheets_(ss, data || {}, reportTemplateId);
+    } else {
+      warning = '表紙・報告書は付いていません: REPORT_TEMPLATE_SHEET_ID が未設定です';
+    }
+  }
 
   // 写真台帳シートを同じファイルに追加結合する（recordIdがあり、写真が存在する場合のみ）
   if (recordId && photoTemplateId) {
@@ -159,6 +170,7 @@ function generateOperationExcel_(data, recordId) {
   return {
     base64: Utilities.base64Encode(xlsxBlob.getBytes()),
     filename: baseName + '.xlsx',
-    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    warning: warning
   };
 }
