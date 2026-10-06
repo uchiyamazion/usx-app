@@ -922,9 +922,10 @@ function flexParseSheet(ws) {
   // === 基本情報（ラベルを探して右の値を取得）===
   var INFO = ['現場名','住所','系統名','型式','設置年月日','冷媒種類','連結台数','作業者','作成者','備考'];
   INFO.forEach(function(key){
-    var wide = (key==='作業者' || key==='作成者' || key==='連結台数');
+    var wide = (key==='作業者' || key==='作成者' || key==='連結台数' || key==='冷媒種類');
     var pos = findLabel(key, 15, wide ? 30 : 7);
-    if (pos) { var v = rightVal(pos.r, pos.c+1, 15); if (v) data[key] = v; }
+    // 設置年月日は値が空のとき右隣の別ラベル(冷媒種類)を拾わないよう、探す範囲を狭める
+    if (pos) { var v = rightVal(pos.r, pos.c+1, key==='設置年月日' ? 6 : 15); if (v) data[key] = v; }
   });
 
   // 作業日時（「作業日時」or「作業日」）
