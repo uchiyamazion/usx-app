@@ -620,7 +620,13 @@ function clearFm(){
   }
 }
 
+function toDateInput(v){
+  var m=String(v||'').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if(!m) return '';
+  return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+}
 function restore(data){
+  if(data['作業日時']!==undefined){data=Object.assign({},data);data['作業日時']=toDateInput(data['作業日時']);}
   var fs=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式'];
   for(var i=0;i<fs.length;i++){if(data[fs[i]]!==undefined){var e=document.getElementById('f-'+fs[i]);if(e)e.value=data[fs[i]];}}
   if(data['作業区分']){var p=document.querySelector('.pill[data-group="kubun"][data-val="'+data['作業区分']+'"]');if(p){p.classList.add('on');pst['kubun']=data['作業区分'];}}
@@ -903,10 +909,10 @@ function flexParseSheet(ws) {
   function norm(s){ return s.replace(/[\s\u3000]+/g,''); }
 
   // ラベルを探す（行0-14、列0-6）
-  function findLabel(keyword, maxRow) {
+  function findLabel(keyword, maxRow, maxCol) {
     var kn = norm(keyword);
     for (var r = 0; r < (maxRow||14); r++) {
-      for (var c = 0; c < 7; c++) {
+      for (var c = 0; c < (maxCol||7); c++) {
         if (norm(cv(r,c)).indexOf(kn) >= 0) return {r:r,c:c};
       }
     }
@@ -916,14 +922,15 @@ function flexParseSheet(ws) {
   // === 基本情報（ラベルを探して右の値を取得）===
   var INFO = ['現場名','住所','系統名','型式','設置年月日','冷媒種類','連結台数','作業者','作成者','備考'];
   INFO.forEach(function(key){
-    var pos = findLabel(key, 15);
+    var wide = (key==='作業者' || key==='作成者' || key==='連結台数');
+    var pos = findLabel(key, 15, wide ? 30 : 7);
     if (pos) { var v = rightVal(pos.r, pos.c+1, 15); if (v) data[key] = v; }
   });
 
   // 作業日時（「作業日時」or「作業日」）
   ['作業日時','作業日'].forEach(function(lbl){
     if (!data['作業日時']) {
-      var pos = findLabel(lbl, 10);
+      var pos = findLabel(lbl, 10, 30);
       if (pos) { var v = rightVal(pos.r, pos.c+1, 15); if (v) data['作業日時'] = v; }
     }
   });
