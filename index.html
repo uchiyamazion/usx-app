@@ -974,7 +974,8 @@ function parseReportInfo(wb) {
     var lines = [];
     for (var r = rRes + 1; r < (rNote < 0 ? last + 1 : rNote); r++) {
       var cells = [];
-      for (var c = 2; c <= 12; c++) { var v = cellText(rep, r, c); if (v) cells.push(v); }
+      // M列は宛先の顧客リストが入っている書式があるため、C〜L列だけを読む
+      for (var c = 2; c <= 11; c++) { var v = cellText(rep, r, c); if (v) cells.push(v); }
       if (!cells.length) continue;
       var line = cells[0];
       if (/^(◇|※|・|･)$/.test(cells[0])) line = '※' === cells[0] ? '※' + cells.slice(1).join(' ') : cells.slice(1).join(' ');
@@ -982,7 +983,16 @@ function parseReportInfo(wb) {
       line = line.trim();
       if (line) lines.push(line);
     }
-    if (lines.length) out['報告_作業結果'] = lines.join('\n');
+    // 元ファイルでは行幅に合わせて手動で改行されているため、文の途中の改行は連結して段落にする
+    var paras = [];
+    lines.forEach(function(l) {
+      var prev = paras.length ? paras[paras.length - 1] : null;
+      var startsNew = /^(※|◇|・|･|■|【|\d+[．.])/.test(l);
+      var prevEnded = prev === null || /[。！？)）】」』]$/.test(prev);
+      if (prev !== null && !startsNew && !prevEnded) paras[paras.length - 1] = prev + l;
+      else paras.push(l);
+    });
+    if (paras.length) out['報告_作業結果'] = paras.join('\n');
   }
   return out;
 }

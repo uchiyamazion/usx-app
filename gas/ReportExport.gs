@@ -44,6 +44,10 @@ function addReportSheets_(ss, data, templateId) {
   const cover = srcCover.copyTo(ss).setName(REPORT_COVER_SHEET);
   const body = srcBody.copyTo(ss).setName(REPORT_BODY_SHEET);
 
+  // 印刷範囲はコピーされないため、M列より右（テンプレートの余白）を削除して、1ページ幅に収める
+  const extraCols = body.getMaxColumns() - REPORT_LAST_COL;
+  if (extraCols > 0) body.deleteColumns(REPORT_LAST_COL + 1, extraCols);
+
   const layout = buildReportLayout_(data);
   writeReportCover_(cover, layout);
   writeReportBody_(body, layout);
@@ -66,7 +70,8 @@ function writeReportBody_(sheet, layout) {
   sheet.getRange('B7').setValue(layout.addressee);
   sheet.getRange('C17').setValue(layout.siteName);
   sheet.getRange('C18').setValue(layout.address);
-  sheet.getRange('J17').setValue(layout.workDate);
+  // 日付として解釈されて「Wednesday, October 7, 2026」のような形式になるのを防ぐため、書式を文字列にしてから書き込む
+  sheet.getRange('J17').setNumberFormat('@').setValue(layout.workDate);
   sheet.getRange('J19').setValue(layout.workers);
   sheet.getRange('D21').setValue(layout.subject);
 
@@ -130,8 +135,8 @@ function buildReportLayout_(data) {
   lineSplit(data['報告_作業結果']).forEach(function (raw, idx) {
     let text = raw.trim();
     let marker = '';
-    if (idx > 0 && text.charAt(0) === '※') {
-      marker = '※';
+    if (idx > 0 && (text.charAt(0) === '※' || text.charAt(0) === '■')) {
+      marker = text.charAt(0);
       text = text.slice(1).trim();
     }
     reportWrap_(text, REPORT_WRAP_WIDTH).forEach(function (piece, k) {
@@ -177,12 +182,28 @@ function reportWrap_(text, maxWidth) {
   let cur = '';
   let w = 0;
   const chars = Array.from(String(text));
+  const NO_LINE_START = '。、，．）」』】';
+  const isAscii = function (c) { return /[\x21-\x7E]/.test(c); };  // 半角の英数字・記号（空白は除く）
   chars.forEach(function (ch) {
     const cw = ch.charCodeAt(0) > 255 && !(ch.charCodeAt(0) >= 0xFF61 && ch.charCodeAt(0) <= 0xFF9F) ? 2 : 1;
     if (w + cw > maxWidth && cur !== '') {
+      if (NO_LINE_START.indexOf(ch) >= 0) {
+        // 句読点・閉じ括弧は行頭に置かず、前の行にぶら下げる
+        cur += ch;
+        out.push(cur);
+        cur = '';
+        w = 0;
+        return;
+      }
+      // 半角英数字の途中で切らない（「2,500hr」「ATR-1-2」など）。直前の連続部分を次の行へ送る
+      let carry = '';
+      if (isAscii(ch)) {
+        const m = cur.match(/[\x21-\x7E]+$/);
+        if (m && m[0].length < cur.length) { carry = m[0]; cur = cur.slice(0, cur.length - carry.length); }
+      }
       out.push(cur);
-      cur = '';
-      w = 0;
+      cur = carry;
+      w = Array.from(carry).length;
     }
     cur += ch;
     w += cw;
