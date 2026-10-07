@@ -1112,17 +1112,20 @@ function flexParseSheet(ws) {
   var kubunPos = findLabel('作業区分', 10);
   if (kubunPos) {
     var r = kubunPos.r;
-    var KUBUN = ['試運転','定期点検','簡易点検','点検','整備','故障診断','故障判定','修理','その他'];
+    // 具体的な名称を先に判定し、最初に一致したものを採用する（「定期点検」が後ろの「点検」で上書きされないように）
+    var KUBUN = ['試運転','定期点検','簡易点検','故障診断','故障判定','整備','修理','点検','その他'];
     for (var c = 0; c <= 20; c++) {
       var v = cv(r,c);
       if (v.indexOf('☑') >= 0 || v.indexOf('■') >= 0) {
-        KUBUN.forEach(function(k){ if(norm(v).indexOf(norm(k))>=0) data['作業区分']=k; });
+        for (var ki = 0; ki < KUBUN.length; ki++) {
+          if (norm(v).indexOf(norm(KUBUN[ki])) >= 0) { data['作業区分'] = KUBUN[ki]; break; }
+        }
       }
     }
   }
 
   // フロン区分
-  var fronPos = findLabel('フロン', 12);
+  var fronPos = findLabel('フロン', 12, 30);
   if (fronPos) {
     var r = fronPos.r;
     for (var c = fronPos.c; c <= fronPos.c+10; c++) {
@@ -1133,6 +1136,11 @@ function flexParseSheet(ws) {
       }
     }
   }
+
+  // 画面の作業区分ボタン（試運転/定期点検/簡易点検/修理/整備/故障判定）に合わせる
+  if (data['作業区分'] === '点検') data['作業区分'] = (data['フロン区分'] === '簡易点検') ? '簡易点検' : '定期点検';
+  if (data['作業区分'] === '故障診断') data['作業区分'] = '故障判定';
+  if (data['作業区分'] === 'その他') delete data['作業区分'];
 
   // === ユニット列の検出（A,B,C,D パターンを探す）===
   var unitGroups = [];
