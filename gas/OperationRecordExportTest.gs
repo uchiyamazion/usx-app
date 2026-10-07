@@ -119,7 +119,8 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
   safeSet(sheet, 'E5', data['系統名']);
   if (data['型式'] !== undefined && data['型式'] !== null && data['型式'] !== '') {
     safeSet(sheet, 'E6', 'RUA-');
-    safeSet(sheet, 'F6', data['型式']);
+    // 「RUA-」はE6に付くので、入力に含まれていれば取り除く（RUA-RUA-の重複防止）
+    safeSet(sheet, 'F6', String(data['型式']).replace(/^\s*RUA[-－‐ー]?\s*/i, ''));
   }
   safeSet(sheet, 'E7', data['運転状態']);
   if (data['設定温度'] !== undefined && data['設定温度'] !== null) {
@@ -130,6 +131,11 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
   safeSet(sheet, 'I8', data['冷媒種類']);
   safeSet(sheet, 'T70', data['作成者']);
   safeSet(sheet, 'A72', data['備考']);
+  if (data['備考']) {
+    // 備考欄(A72:V77の結合セル)は折り返し・上寄せ・黒字にして、長い文章が途中で切れないようにする
+    sheet.getRange('A72').setFontColor('#000000').setWrap(true).setVerticalAlignment('top');
+  }
+  if (data['作成者']) sheet.getRange('T70').setFontColor('#000000');
   // 注2の流量範囲（未入力ならテンプレートの値のまま）
   if (data['流量下限'] !== undefined && data['流量下限'] !== '') sheet.getRange('H64').setValue(Number(data['流量下限']));
   if (data['流量上限'] !== undefined && data['流量上限'] !== '') sheet.getRange('J64').setValue(Number(data['流量上限']));
@@ -149,7 +155,9 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
     if (ui >= units.length) break;
     const u = units[ui];
     const cols = UNIT_COLS[li];
-    if (u['No']) setUnitCell_(sheet, cols.no_val + '11', u['No']);
+    // 番号が数値でなければ(「NO.」などの見出し文字)、並び順の番号を入れる
+    const unitNo = /^\d+$/.test(String(u['No'] || '')) ? u['No'] : (ui + 1);
+    setUnitCell_(sheet, cols.no_val + '11', unitNo);
     if (u['UC製造番号']) setUnitCell_(sheet, cols.info + '12', u['UC製造番号']);
     if (u['冷却加熱']) setUnitCell_(sheet, cols.info + '13', u['冷却加熱']);
     if (u['製造年']) setUnitCell_(sheet, cols.info + '14', u['製造年'], '0');

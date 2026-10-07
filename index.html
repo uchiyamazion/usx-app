@@ -1104,6 +1104,9 @@ function flexParseSheet(ws) {
     }
   });
 
+  // 型式: 出力側で「RUA-」を付けるため、取り込み時は先頭のRUA-を除く
+  if (typeof data['型式'] === 'string') data['型式'] = data['型式'].replace(/^\s*RUA[-－‐ー]?\s*/i, '');
+
   // 運転状態 / 設定温度（同じ行に混在）
   var stPos = findLabel('運転状態', 12);
   if (stPos) {
@@ -1187,10 +1190,13 @@ function flexParseSheet(ws) {
     for (var c = 0; c <= 26; c++) {
       var v2 = cv(r,c);
       if (v2 && norm(v2) === 'NO.') {
-        // 右にユニット名
+        // 各ユニットの列範囲(A〜D)にある最初の数値がユニット番号
         for (var ui = 0; ui < unitGroups.length; ui++) {
-          var nm = cv(r, unitGroups[ui].A);
-          if (nm) units[ui]['No'] = units[ui]['No'] || nm;
+          if (units[ui]['No']) continue;
+          for (var cc = unitGroups[ui].A; cc < unitGroups[ui].A + 4; cc++) {
+            var nm = cv(r, cc);
+            if (/^\d+$/.test(nm)) { units[ui]['No'] = nm; break; }
+          }
         }
       }
     }
