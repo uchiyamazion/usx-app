@@ -1030,7 +1030,8 @@ function doImportCore(wb, recSheets, res) {
     res.style.background = '#f0fdf4';
     res.style.border = '1px solid #86efac';
     res.innerHTML = '✅ <strong>「' + (data['現場名'] || '不明') + '」</strong> を読み込みました<br>'
-      + '<small style="color:var(--g600);">' + recSheets.length + 'シート / ' + nonEmpty + '台分のデータを復元。新規記録として保存されます。</small>';
+      + '<small style="color:var(--g600);">' + recSheets.length + 'シート / ' + nonEmpty + '台分のデータを復元。新規記録として保存されます。</small><br>'
+      + '<small style="color:var(--g600);">読み取った作業日: ' + (document.getElementById('f-作業日時').value || '（見つかりませんでした。手入力してください）') + '</small>';
     toast('Excelからインポートしました');
   } catch(err) {
     res.style.background = '#fee2e2';
