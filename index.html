@@ -136,6 +136,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div class="fg fg3" style="margin-bottom:12px;">
       <div class="fl"><label>型式（RUA-の右から入力）</label><input type="text" id="f-型式" placeholder="例: UP●●●HKZGM"></div>
       <div class="fl"><label>設置年月日</label><input type="text" id="f-設置年月日"></div>
+      <div class="fl"><label>流量範囲 下限(L/min)</label><input type="number" id="f-流量下限" step="any" placeholder="150"></div>
+      <div class="fl"><label>流量範囲 上限(L/min)</label><input type="number" id="f-流量上限" step="any" placeholder="600"></div>
       <div class="fl"><label>冷媒種類</label><select id="f-冷媒種類"><option value="">選択</option><option>R-410A</option><option>R-134a</option><option>R-32</option><option>R-404A</option><option>R-407C</option></select></div>
     </div>
     <div class="divider"></div>
@@ -438,7 +440,7 @@ function buildPrecheck(){
 function gv(id){var e=document.getElementById(id);return e?e.value:'';}
 
 // 入力欄と対応するデータキー（collect / clearFm / restore 共通）
-var FIELDS=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式','報告_宛先','報告_件名','報告_提出日','報告_作業内容','報告_作業結果'];
+var FIELDS=['現場名','住所','作業日時','作業者','作成者','系統名','設定温度','連結台数','設置年月日','備考','運転状態','冷媒種類','型式','流量下限','流量上限','報告_宛先','報告_件名','報告_提出日','報告_作業内容','報告_作業結果'];
 var DEFAULT_WORK=['電装品点検','各端子部増し締め','冷媒ガス漏洩点検','機内簡易清掃','絶縁抵抗測定','保護装置作動確認（高圧スイッチ）','運転データ測定','遠方確認'].join('\n');
 var DEFAULT_RESULT='上記の作業結果、チラーが正常に動作していることを確認致しました。';
 function setReportDefaults(){
@@ -1112,7 +1114,7 @@ function flexParseSheet(ws) {
       if (v === '℃') continue;
       var num = parseFloat(v);
       if (!isNaN(num) && cv(r,c+1).indexOf('℃') >= 0) {
-        data['設定温度'] = num;
+        if (data['設定温度'] === undefined) data['設定温度'] = num;
       } else if (isNaN(num) && !data['運転状態'] && v.length < 10) {
         data['運転状態'] = v;
       }
@@ -1300,12 +1302,16 @@ function flexParseSheet(ws) {
     '補機関係':['ポンプ','圧力計','アキュームレータ','アキュムレータ'],
     'その他':['その他']
   };
+  // 取り込み元の表記 → 画面（チェック項目）の名称
+  var CHK_CANON = {'センサ':'センサー','圧力不足':'圧力不良','異常加熱':'異常過熱','ストレ詰り':'Yスト詰り','アキュームレータ':'アキュムレータ'};
   var grpRows = {}; // グループ名→行インデックス
   var checks = {};
   for (var r = 0; r < 80; r++) {
     var lbl = norm(cv(r,0));
     Object.keys(CHK_GRP).forEach(function(grp){
-      if (!grpRows[grp] && norm(grp).length > 3 && lbl.indexOf(norm(grp).slice(0,4)) >= 0) grpRows[grp] = r;
+      if (grpRows[grp]) return;
+      if (grp === 'その他') { if (lbl === norm('その他')) grpRows[grp] = r; return; }
+      if (norm(grp).length > 3 && lbl.indexOf(norm(grp).slice(0,4)) >= 0) grpRows[grp] = r;
     });
   }
   Object.keys(grpRows).forEach(function(grp){
@@ -1314,13 +1320,43 @@ function flexParseSheet(ws) {
       var v = cv(r,c);
       if (v.indexOf('☑')>=0 || v.indexOf('■')>=0) {
         CHK_GRP[grp].forEach(function(item){
-          if (norm(v).indexOf(norm(item)) >= 0) sel.push(item);
+          if (norm(v).indexOf(norm(item)) >= 0) {
+            var canon = CHK_CANON[item] || item;
+            if (sel.indexOf(canon) < 0) sel.push(canon);
+          }
         });
       }
     }
     if (sel.length > 0) checks[grp] = sel;
   });
   data['チェック結果'] = checks;
+
+  // === 備考（「備考」ラベルの下の行。「※」などの印と本文を連結）===
+  if (!data['備考']) {
+    var bk = findLabel('備考', 100, 3);
+    if (bk) {
+      var bLines = [];
+      for (var r = bk.r + 1; r <= bk.r + 8; r++) {
+        var bp = [];
+        for (var c = 0; c <= 12; c++) { var bv = cv(r, c); if (bv) bp.push(bv); }
+        if (!bp.length) { if (bLines.length) break; else continue; }
+        bLines.push(bp.join(''));
+      }
+      if (bLines.length) data['備考'] = bLines.join('\n');
+    }
+  }
+
+  // === 流量範囲（注2「熱源機単体の流量範囲は 220 ～ 596 L/min」）===
+  for (var r = 40; r < 100; r++) {
+    var head = '';
+    for (var c = 0; c < 5; c++) head += cv(r, c);
+    if (norm(head).indexOf('流量範囲') >= 0) {
+      var nums = [];
+      for (var c = 0; c <= 25; c++) { var nv = cv(r, c); if (/^\d+(\.\d+)?$/.test(nv)) nums.push(nv); }
+      if (nums.length >= 2) { data['流量下限'] = nums[0]; data['流量上限'] = nums[1]; }
+      break;
+    }
+  }
 
   // === 試運転事前点検（☑OK/☑NGを含む行をスキャン）===
   var PC_ITEMS = ['電装品','通信線','熱源機外観','内蔵ポンプ','水配管フラッシング','12時間前通電','冷媒漏洩','インターロック'];

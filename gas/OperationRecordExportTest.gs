@@ -49,6 +49,25 @@ const FIELD_ROWS = [
   ['出荷時充填量', 46, true], ['初期充填量', 47, true], ['総充填量', 48, true]
 ];
 
+// 数値セルの表示書式と文字サイズ（元の報告書の書式に合わせる。列幅が狭いので文字は小さめ）
+const FIELD_STYLE = {
+  '運転時間': ['0', 8], '運転回数': ['0', 8],
+  '冷温水入口圧力': ['0.0', 9], '冷温水出口圧力': ['0.0', 9], '換算流量': ['0', 9],
+  '圧縮機電流_R': ['0.0', 9], '圧縮機電流_S': ['0.0', 9], '圧縮機電流_T': ['0.0', 9],
+  '圧縮機電圧_RS': ['0', 9], '圧縮機電圧_ST': ['0', 9], '圧縮機電圧_TR': ['0', 9],
+  '冷温水入口温度': ['0.0', 9], '冷温水中間温度': ['0.0', 9], '冷温水出口温度': ['0.0', 9], '外気温度': ['0.0', 9],
+  '冷媒高圧圧力': ['0.00', 9], '冷媒低圧圧力': ['0.00', 9],
+  '冷媒吐出ガス温度': ['0.0', 9], '冷媒吸入ガス温度': ['0.0', 9],
+  '冷媒コイルガス温度1': ['0.0', 9], '冷媒コイルガス温度2': ['0.0', 9],
+  'ファン回転数': ['0', 9], '圧縮機運転周波数': ['0', 9],
+  '膨脹弁1開度': ['0', 9], '膨脹弁2開度': ['0', 9],
+  '高圧圧力異常': ['0.00', 9], '絶縁抵抗': ['0', 9],
+  '出荷時充填量': ['0.0', 9], '初期充填量': ['0.0', 9], '総充填量': ['0.0', 9]
+};
+
+// 画面側の名称とテンプレートの表記が違うチェック項目
+const CHECK_ALIASES = { 'ストレ詰り': 'Yスト詰り' };
+
 const CHECK_CELLS = {
   '圧縮機関係': { '異常音': 'F50', '異常振動': 'H50', '圧力不良': 'K50', 'オイル量': 'N50', '異常過熱': 'Q50' },
   '凝縮器関係': { '汚れ': 'F51', '流量不足': 'H51', 'ストレ詰り': 'K51', '風量不足': 'N51' },
@@ -78,6 +97,16 @@ function safeSet(sheet, a1, value) {
   sheet.getRange(a1).setValue(value);
 }
 
+/** 熱源機の入力セルに書き込む。文字色は黒（テンプレートの2台目以降は赤のため）、書式と文字サイズを指定する */
+function setUnitCell_(sheet, a1, value, numFmt, fontSize) {
+  if (value === undefined || value === null || value === '') return;
+  const range = sheet.getRange(a1);
+  range.setFontColor('#000000');
+  if (numFmt) range.setNumberFormat(numFmt);
+  if (fontSize) range.setFontSize(fontSize);
+  range.setValue(value);
+}
+
 /**
  * 1シート分の書き込み。server.py の write_sheet() に対応。
  * unitStart/unitEnd は0-indexed（例: 1-4号機シートなら 0, 4）
@@ -101,6 +130,9 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
   safeSet(sheet, 'I8', data['冷媒種類']);
   safeSet(sheet, 'T70', data['作成者']);
   safeSet(sheet, 'A72', data['備考']);
+  // 注2の流量範囲（未入力ならテンプレートの値のまま）
+  if (data['流量下限'] !== undefined && data['流量下限'] !== '') sheet.getRange('H64').setValue(Number(data['流量下限']));
+  if (data['流量上限'] !== undefined && data['流量上限'] !== '') sheet.getRange('J64').setValue(Number(data['流量上限']));
 
   const workTypeCells = { '試運転': 'D4', '定期点検': 'F4', '簡易点検': 'H4', '修理': 'J4', '整備': 'L4', '故障判定': 'N4' };
   Object.keys(workTypeCells).forEach(function (k) {
@@ -117,25 +149,26 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
     if (ui >= units.length) break;
     const u = units[ui];
     const cols = UNIT_COLS[li];
-    if (u['No']) safeSet(sheet, cols.no_val + '11', u['No']);
-    if (u['UC製造番号']) safeSet(sheet, cols.info + '12', u['UC製造番号']);
-    if (u['冷却加熱']) safeSet(sheet, cols.info + '13', u['冷却加熱']);
-    if (u['製造年']) safeSet(sheet, cols.info + '14', u['製造年']);
-    if (u['記録時間']) safeSet(sheet, cols.info + '49', u['記録時間']);
+    if (u['No']) setUnitCell_(sheet, cols.no_val + '11', u['No']);
+    if (u['UC製造番号']) setUnitCell_(sheet, cols.info + '12', u['UC製造番号']);
+    if (u['冷却加熱']) setUnitCell_(sheet, cols.info + '13', u['冷却加熱']);
+    if (u['製造年']) setUnitCell_(sheet, cols.info + '14', u['製造年'], '0');
+    if (u['記録時間']) setUnitCell_(sheet, cols.info + '49', u['記録時間']);
 
     FIELD_ROWS.forEach(function (fr) {
       const field = fr[0], row = fr[1], isCircuit = fr[2];
+      const st = FIELD_STYLE[field] || [null, null];
       if (isCircuit) {
         ['A', 'B', 'C', 'D'].forEach(function (c) {
           const val = u[field + '_' + c];
           if (val !== undefined && val !== null && val !== '') {
-            safeSet(sheet, cols[c] + row, val);
+            setUnitCell_(sheet, cols[c] + row, val, st[0], st[1]);
           }
         });
       } else {
         const val = (u[field + '_A'] !== undefined ? u[field + '_A'] : u[field]);
         if (val !== undefined && val !== null && val !== '') {
-          safeSet(sheet, cols['A'] + row, val);
+          setUnitCell_(sheet, cols['A'] + row, val, st[0], st[1]);
         }
       }
     });
@@ -146,7 +179,8 @@ function writeOperationRecordSheet(sheet, data, unitStart, unitEnd) {
     const items = CHECK_CELLS[group];
     const sel = checks[group] || [];
     Object.keys(items).forEach(function (item) {
-      safeSet(sheet, items[item], (sel.indexOf(item) !== -1 ? '■' : '□') + item);
+      const on = sel.indexOf(item) !== -1 || (CHECK_ALIASES[item] && sel.indexOf(CHECK_ALIASES[item]) !== -1);
+      safeSet(sheet, items[item], (on ? '■' : '□') + item);
     });
   });
 
