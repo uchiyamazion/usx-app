@@ -119,6 +119,12 @@ function generateOperationExcel_(data, recordId, withReport) {
     if (idx < sheets.length) writeOperationRecordSheet(sheets[idx], data || {}, range[0], range[1]);
   });
 
+  // データが1台も入らないシートは出力から外す（例: 6台なら 9-12号機）。1枚目は必ず残す
+  var unitCount = ((data && data['熱源機']) || []).length;
+  [[0, 4], [4, 8], [8, 12]].forEach(function (range, idx) {
+    if (idx > 0 && idx < sheets.length && unitCount <= range[0]) ss.deleteSheet(sheets[idx]);
+  });
+
   // 表紙・報告書シートを先頭に追加する（フロントで「表紙・報告書も付ける」が選ばれている場合のみ）
   var warning = '';
   if (withReport) {
